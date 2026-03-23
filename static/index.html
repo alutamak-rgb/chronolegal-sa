@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronoLegal AI — Medical Chronology for Personal Injury Litigation</title>
+  <meta name="description" content="Turn hundreds of pages of medical records into a complete, colour-coded injury timeline in seconds. Built for personal injury law firms." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #1F4E79;
+      --navy-dark: #164069;
+      --navy-light: #eff6ff;
+      --accent: #E36C09;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      background: #fff;
+      line-height: 1.6;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .nav-logo { display: flex; align-items: center; gap: 10px; }
+    .nav-logo-icon {
+      width: 34px; height: 34px;
+      background: var(--navy);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-logo span { font-size: 17px; font-weight: 700; color: var(--navy); }
+
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a { font-size: 14px; color: var(--muted); font-weight: 500; transition: color 0.15s; }
+    .nav-links a:hover { color: var(--navy); }
+
+    .nav-cta {
+      background: var(--navy);
+      color: #fff !important;
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      transition: background 0.15s !important;
+    }
+    .nav-cta:hover { background: var(--navy-dark) !important; color: #fff !important; }
+
+    /* HERO */
+    .hero {
+      padding: 96px 48px 80px;
+      text-align: center;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--navy-light);
+      color: var(--navy);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 100px;
+      margin-bottom: 28px;
+    }
+
+    .hero h1 {
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    .hero h1 span { color: var(--navy); }
+
+    .hero p {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 580px;
+      margin: 0 auto 40px;
+    }
+
+    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+    .btn-primary {
+      background: var(--navy);
+      color: #fff;
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.1s;
+      display: inline-block;
+    }
+    .btn-primary:hover { background: var(--navy-dark); transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: var(--text);
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background 0.2s;
+      display: inline-block;
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* SOCIAL PROOF BAR */
+    .proof-bar {
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 48px;
+      display: flex;
+      justify-content: center;
+      gap: 56px;
+      flex-wrap: wrap;
+    }
+
+    .proof-item { text-align: center; }
+    .proof-number { font-size: 28px; font-weight: 800; color: var(--navy); }
+    .proof-label { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    /* PAIN SECTION */
+    .section { padding: 80px 48px; max-width: 1100px; margin: 0 auto; }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .section h2 {
+      font-size: clamp(26px, 3.5vw, 38px);
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+    }
+
+    .section > p { font-size: 17px; color: var(--muted); max-width: 600px; margin-bottom: 48px; }
+
+    /* BEFORE / AFTER */
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .compare-box { border-radius: 14px; padding: 32px; }
+    .compare-box.before { background: #fef2f2; border: 1px solid #fecaca; }
+    .compare-box.after  { background: #f0fdf4; border: 1px solid #bbf7d0; }
+
+    .compare-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
+    .compare-box.before h3 { color: #dc2626; }
+    .compare-box.after h3  { color: #16a34a; }
+
+    .compare-box ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .compare-box li { display: flex; gap: 10px; font-size: 14px; color: #374151; }
+    .compare-box li span:first-child { flex-shrink: 0; font-size: 16px; }
+
+    /* HOW IT WORKS */
+    .how-bg { background: var(--navy-light); }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .step {
+      background: #fff;
+      border-radius: 14px;
+      padding: 32px 28px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    .step-num {
+      width: 42px; height: 42px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800;
+      margin-bottom: 20px;
+    }
+
+    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* OUTPUT PREVIEW */
+    .output-preview {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 48px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    .output-preview-header {
+      background: var(--navy);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .output-preview-header span { color: rgba(255,255,255,0.7); font-size: 13px; }
+
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .preview-table th {
+      background: var(--navy);
+      color: #fff;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .preview-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #374151; }
+    .preview-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge.critical { background: #C00000; color: #fff; }
+    .badge.high { background: #E36C09; color: #fff; }
+    .badge.medium { background: #F2C500; color: #000; }
+
+    /* PRICING */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .pricing-card {
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 32px 28px;
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--navy);
+      background: var(--navy-light);
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--navy);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .pricing-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .price { font-size: 36px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+    .price span { font-size: 16px; font-weight: 500; color: var(--muted); }
+    .price-desc { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+    .pricing-card ul { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+    .pricing-card li { font-size: 14px; display: flex; gap: 8px; }
+    .pricing-card li::before { content: "✓"; color: var(--navy); font-weight: 700; flex-shrink: 0; }
+
+    .btn-outline {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 11px;
+      border: 1.5px solid var(--navy);
+      border-radius: 8px;
+      color: var(--navy);
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .btn-outline:hover { background: var(--navy); color: #fff; }
+    .btn-filled {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 11px;
+      background: var(--navy);
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.15s;
+    }
+    .btn-filled:hover { background: var(--navy-dark); }
+
+    /* CTA BANNER */
+    .cta-banner {
+      background: var(--navy);
+      padding: 80px 48px;
+      text-align: center;
+    }
+
+    .cta-banner h2 { font-size: clamp(26px, 3.5vw, 38px); font-weight: 800; color: #fff; margin-bottom: 16px; }
+    .cta-banner p { font-size: 17px; color: rgba(255,255,255,0.75); margin-bottom: 36px; }
+
+    .cta-banner .btn-white {
+      background: #fff;
+      color: var(--navy);
+      padding: 14px 36px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      display: inline-block;
+      transition: transform 0.15s;
+    }
+    .cta-banner .btn-white:hover { transform: translateY(-1px); }
+
+    /* FOOTER */
+    footer {
+      padding: 32px 48px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 60px 20px 48px; }
+      .proof-bar { padding: 20px; gap: 32px; }
+      .section { padding: 60px 20px; }
+      .compare, .steps, .pricing-grid { grid-template-columns: 1fr; }
+      footer { padding: 24px 20px; flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <div class="nav-logo-icon">⚖️</div>
+      <span>ChronoLegal AI</span>
+    </div>
+    <div class="nav-links">
+      <a href="#how-it-works">How it works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="mailto:hello@echoaistudio.xyz">Contact</a>
+      <a href="/tool" class="nav-cta">Try it free →</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">⚡ Built for Personal Injury Law Firms</div>
+    <h1>Medical chronologies in <span>seconds</span>, not days</h1>
+    <p>Upload your medical records. ChronoLegal AI extracts every key event into a colour-coded, hyperlinked timeline — ready for litigation.</p>
+    <div class="hero-actions">
+      <a href="/tool" class="btn-primary">Generate your first chronology →</a>
+      <a href="#how-it-works" class="btn-secondary">See how it works</a>
+    </div>
+  </section>
+
+  <!-- PROOF BAR -->
+  <div class="proof-bar">
+    <div class="proof-item">
+      <div class="proof-number">8–16 hrs</div>
+      <div class="proof-label">saved per case</div>
+    </div>
+    <div class="proof-item">
+      <div class="proof-number">&lt;90 sec</div>
+      <div class="proof-label">processing time</div>
+    </div>
+    <div class="proof-item">
+      <div class="proof-number">$400–$800</div>
+      <div class="proof-label">typical paralegal cost per chronology</div>
+    </div>
+    <div class="proof-item">
+      <div class="proof-number">100%</div>
+      <div class="proof-label">sourced — every event linked to a page</div>
+    </div>
+  </div>
+
+  <!-- PAIN / SOLUTION -->
+  <section class="section">
+    <div class="section-label">The Problem</div>
+    <h2>Manual chronologies are killing your team's time</h2>
+    <p>Personal injury cases involve hundreds — sometimes thousands — of pages of medical records. Building a chronology manually is slow, expensive, and prone to error.</p>
+
+    <div class="compare">
+      <div class="compare-box before">
+        <h3>❌ Without ChronoLegal AI</h3>
+        <ul>
+          <li><span>⏱</span><span>Paralegals spend 8–16 hours per case reading through records</span></li>
+          <li><span>💸</span><span>$400–$800 in paralegal time per chronology</span></li>
+          <li><span>🔍</span><span>Easy to miss critical events buried in dense records</span></li>
+          <li><span>📋</span><span>Inconsistent formatting across cases and staff</span></li>
+          <li><span>🔄</span><span>Redone when new records arrive</span></li>
+        </ul>
+      </div>
+      <div class="compare-box after">
+        <h3>✅ With ChronoLegal AI</h3>
+        <ul>
+          <li><span>⚡</span><span>Complete chronology in under 90 seconds</span></li>
+          <li><span>💰</span><span>Fraction of the cost — pay per report or monthly flat fee</span></li>
+          <li><span>🎯</span><span>Every significant event extracted with significance ratings</span></li>
+          <li><span>📊</span><span>Consistent, professional Excel or Word output every time</span></li>
+          <li><span>➕</span><span>Add new records and regenerate instantly</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-bg" id="how-it-works">
+    <div class="section">
+      <div class="section-label">How It Works</div>
+      <h2>Three steps to a complete chronology</h2>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Upload your records</h3>
+          <p>Drag and drop one or more medical record PDFs — ER reports, treatment notes, imaging results, specialist letters. Any text-based PDF works.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>AI extracts the timeline</h3>
+          <p>Our system reads every page, identifies medically significant events, and classifies them by type, date, provider, and litigation significance.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Download &amp; use</h3>
+          <p>Receive a colour-coded Excel or Word chronology with event dates, types, providers, descriptions, and page references — ready to attach to your case file.</p>
+        </div>
+      </div>
+
+      <!-- OUTPUT PREVIEW -->
+      <div class="output-preview">
+        <div class="output-preview-header">
+          <span>📊</span>
+          <span>chronology_Smith_v_Allied_Insurance.xlsx</span>
+        </div>
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Date</th><th>Event Type</th><th>Provider</th><th>Description</th><th>Significance</th><th>Page</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>2023-06-15</td>
+              <td>Visit</td>
+              <td>Dr. S. Okafor, Metro General Hospital</td>
+              <td>Patient presented via ambulance following rear-end MVA. Cervical and lumbar tenderness noted. GCS 15.</td>
+              <td><span class="badge critical">Critical</span></td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>2023-06-27</td>
+              <td>Imaging</td>
+              <td>Dr. P. Nair, Houston Imaging Center</td>
+              <td>MRI confirms disc herniation at C5-C6 with neural foraminal narrowing and L4-L5 annular tear.</td>
+              <td><span class="badge critical">Critical</span></td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>2023-08-18</td>
+              <td>Procedure</td>
+              <td>Dr. M. Webb, Texas Spine &amp; Orthopedic</td>
+              <td>Lumbar epidural steroid injection at L4-L5 under fluoroscopic guidance. Procedure uncomplicated.</td>
+              <td><span class="badge high">High</span></td>
+              <td>4</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>2024-02-28</td>
+              <td>Other</td>
+              <td>Dr. M. Webb, Texas Spine &amp; Orthopedic</td>
+              <td>Maximum medical improvement reached. 8% whole person impairment. Permanent lifting restriction of 20 lbs.</td>
+              <td><span class="badge critical">Critical</span></td>
+              <td>5</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="section" id="pricing">
+    <div class="section-label">Pricing</div>
+    <h2>Simple, transparent pricing</h2>
+    <p>No subscriptions required to get started. Pay per report or choose a monthly plan if you have regular volume.</p>
+
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h3>Pay As You Go</h3>
+        <div class="price">$99 <span>/ report</span></div>
+        <div class="price-desc">Ideal for occasional cases</div>
+        <ul>
+          <li>Up to 200 pages per report</li>
+          <li>Excel + Word output</li>
+          <li>Multiple PDF upload</li>
+          <li>Delivered in under 2 minutes</li>
+          <li>Email support</li>
+        </ul>
+        <a href="mailto:hello@echoaistudio.xyz?subject=ChronoLegal AI — Pay As You Go" class="btn-outline">Get started</a>
+      </div>
+
+      <div class="pricing-card featured">
+        <div class="pricing-badge">Most Popular</div>
+        <h3>Firm Monthly</h3>
+        <div class="price">$499 <span>/ mo</span></div>
+        <div class="price-desc">Up to 20 reports per month</div>
+        <ul>
+          <li>Unlimited pages per report</li>
+          <li>Excel + Word output</li>
+          <li>Multiple PDF upload</li>
+          <li>Priority processing</li>
+          <li>Dedicated support</li>
+          <li>Cancel anytime</li>
+        </ul>
+        <a href="mailto:hello@echoaistudio.xyz?subject=ChronoLegal AI — Firm Monthly Plan" class="btn-filled">Get started</a>
+      </div>
+
+      <div class="pricing-card">
+        <h3>Enterprise</h3>
+        <div class="price">Custom</div>
+        <div class="price-desc">For high-volume firms &amp; legal departments</div>
+        <ul>
+          <li>Unlimited reports</li>
+          <li>API access</li>
+          <li>Custom output templates</li>
+          <li>Case management integration</li>
+          <li>SLA &amp; dedicated account manager</li>
+        </ul>
+        <a href="mailto:hello@echoaistudio.xyz?subject=ChronoLegal AI — Enterprise" class="btn-outline">Contact us</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BANNER -->
+  <section class="cta-banner">
+    <h2>Generate your first chronology free</h2>
+    <p>No credit card required. Upload a PDF and see the output in under 90 seconds.</p>
+    <a href="/tool" class="btn-white">Try ChronoLegal AI →</a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span>⚖️</span>
+      <span style="font-weight:700;color:#1e293b;">ChronoLegal AI</span>
+      <span>by EchoAI Studio</span>
+    </div>
+    <div>
+      <a href="mailto:hello@echoaistudio.xyz" style="color:#64748b;">hello@echoaistudio.xyz</a>
+    </div>
+    <div>© 2026 EchoAI Studio. All rights reserved.</div>
+  </footer>
+
+</body>
+</html>
