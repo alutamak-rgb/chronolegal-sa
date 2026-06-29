@@ -1,7 +1,8 @@
 import os
 import io
 import json
-import fitz  # PyMuPDF
+import time
+import fitz
 import anthropic
 from datetime import datetime
 from openpyxl import Workbook
@@ -12,9 +13,19 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+_client: anthropic.Anthropic | None = None
+
+def _get_client() -> anthropic.Anthropic:
+    global _client
+    if _client is None:
+        key = os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise RuntimeError("ANTHROPIC_API_KEY not set in environment")
+        _client = anthropic.Anthropic(api_key=key)
+    return _client
 
 CHUNK_SIZE = 25
+MAX_RETRIES = 3
 
 EXTRACTION_PROMPT = """You are a specialist in legal medical chronology creation for personal injury litigation.
 
@@ -34,16 +45,21 @@ Medical records:
 """
 
 
-def extract_chronology_from_pdfs(pdf_list: list[tuple[bytes, str]]) -> list[dict]:
-    """Accept multiple (bytes, filename) tuples, extract and merge events."""
+def extract_chronology_from_pdfs(pdf_list: list[tuple[bytes, str]], max_pages: int = 500) -> list[dict]:
     all_events = []
+    total_pages_processed = 0
 
     for pdf_bytes, filename in pdf_list:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         total_pages = len(doc)
 
-        for start in range(0, total_pages, CHUNK_SIZE):
-            end = min(start + CHUNK_SIZE, total_pages)
+        if total_pages_processed + total_pages > max_pages:
+            pages_to_process = max(0, max_pages - total_pages_processed)
+        else:
+            pages_to_process = total_pages
+
+        for start in range(0, pages_to_process, CHUNK_SIZE):
+            end = min(start + CHUNK_SIZE, pages_to_process)
             chunk_text = ""
             for page_num in range(start, end):
                 page = doc[page_num]
@@ -57,9 +73,12 @@ def extract_chronology_from_pdfs(pdf_list: list[tuple[bytes, str]]) -> list[dict
             events = _call_claude(chunk_text)
             all_events.extend(events)
 
+        total_pages_processed += pages_to_process
         doc.close()
 
-    # Sort: dated events chronologically, unknowns at end
+        if total_pages_processed >= max_pages:
+            break
+
     def sort_key(e):
         d = e.get("date", "Unknown")
         if d == "Unknown":
@@ -74,23 +93,31 @@ def extract_chronology_from_pdfs(pdf_list: list[tuple[bytes, str]]) -> list[dict
 
 
 def _call_claude(text: str) -> list[dict]:
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": EXTRACTION_PROMPT + text}],
-    )
-
-    raw = message.content[0].text.strip()
-
-    if raw.startswith("```"):
-        lines = raw.split("\n")
-        raw = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
-
-    try:
-        events = json.loads(raw)
-        return events if isinstance(events, list) else []
-    except json.JSONDecodeError:
-        return []
+    for attempt in range(MAX_RETRIES):
+        try:
+            client = _get_client()
+            message = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                messages=[{"role": "user", "content": EXTRACTION_PROMPT + text}],
+            )
+            raw = message.content[0].text.strip()
+            if raw.startswith("```"):
+                lines = raw.split("\n")
+                raw = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+            events = json.loads(raw)
+            return events if isinstance(events, list) else []
+        except json.JSONDecodeError:
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(1 * (attempt + 1))
+                continue
+            return []
+        except Exception:
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
+    return []
 
 
 # ── EXCEL ────────────────────────────────────────────────────────────────────
@@ -124,37 +151,29 @@ def generate_excel(events: list[dict], case_name: str) -> io.BytesIO:
     for idx, event in enumerate(events, 1):
         row = idx + 1
         sig = event.get("significance", "Medium")
-
         ws.cell(row=row, column=1, value=idx).alignment = Alignment(horizontal="center", vertical="center")
         ws.cell(row=row, column=2, value=event.get("date", "Unknown")).alignment = Alignment(horizontal="center", vertical="top")
         ws.cell(row=row, column=3, value=event.get("event_type", "")).alignment = Alignment(horizontal="left", vertical="top")
         ws.cell(row=row, column=4, value=event.get("provider", "")).alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
         ws.cell(row=row, column=5, value=event.get("description", "")).alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-
         sig_cell = ws.cell(row=row, column=6, value=sig)
         sig_cell.fill = PatternFill(start_color=sig_colors.get(sig, "A6A6A6"), end_color=sig_colors.get(sig, "A6A6A6"), fill_type="solid")
         sig_cell.font = Font(color=sig_font_colors.get(sig, "FFFFFF"), bold=True, size=10)
         sig_cell.alignment = Alignment(horizontal="center", vertical="center")
-
         ws.cell(row=row, column=7, value=event.get("page_ref", "")).alignment = Alignment(horizontal="center", vertical="top")
-
         for col in range(1, 8):
             ws.cell(row=row, column=col).border = border
-
         ws.row_dimensions[row].height = 40
 
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:G{len(events) + 1}"
 
-    # Summary sheet
     sw = wb.create_sheet("Summary")
     sw.column_dimensions["A"].width = 25
     sw.column_dimensions["B"].width = 40
-
     sw["A1"] = "ChronoLegal AI — Medical Chronology Report"
     sw["A1"].font = Font(bold=True, size=14, color="1F4E79")
     sw.row_dimensions[1].height = 25
-
     meta = [
         ("Case / Matter", case_name),
         ("Generated", datetime.now().strftime("%Y-%m-%d %H:%M")),
@@ -163,7 +182,6 @@ def generate_excel(events: list[dict], case_name: str) -> io.BytesIO:
         ("High Priority Events", sum(1 for e in events if e.get("significance") == "High")),
         ("Date Range", f"{events[0].get('date', 'Unknown')} → {events[-1].get('date', 'Unknown')}" if events else "N/A"),
     ]
-
     for row_num, (label, value) in enumerate(meta, 3):
         sw.cell(row=row_num, column=1, value=label).font = Font(bold=True)
         sw.cell(row=row_num, column=2, value=value)
@@ -177,7 +195,6 @@ def generate_excel(events: list[dict], case_name: str) -> io.BytesIO:
 # ── WORD ─────────────────────────────────────────────────────────────────────
 
 def _set_cell_bg(cell, hex_color: str):
-    """Set Word table cell background colour."""
     tc = cell._tc
     tcPr = tc.get_or_add_tcPr()
     shd = OxmlElement("w:shd")
@@ -189,15 +206,12 @@ def _set_cell_bg(cell, hex_color: str):
 
 def generate_word(events: list[dict], case_name: str) -> io.BytesIO:
     doc = Document()
-
-    # Page margins
     for section in doc.sections:
         section.top_margin = Inches(0.75)
         section.bottom_margin = Inches(0.75)
         section.left_margin = Inches(0.75)
         section.right_margin = Inches(0.75)
 
-    # Title
     title = doc.add_paragraph()
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = title.add_run("MEDICAL CHRONOLOGY REPORT")
@@ -208,17 +222,12 @@ def generate_word(events: list[dict], case_name: str) -> io.BytesIO:
     sub = doc.add_paragraph()
     sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
     sub.add_run(f"Case: {case_name}   |   Generated: {datetime.now().strftime('%Y-%m-%d')}   |   Total Events: {len(events)}")
-
     doc.add_paragraph()
 
-    # Table
     headers = ["#", "Date", "Type", "Provider", "Description", "Significance", "Page"]
     col_widths_in = [0.3, 0.9, 0.9, 1.6, 3.4, 1.0, 0.5]
-
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
-
-    # Header row
     hdr_row = table.rows[0]
     for i, (h, w) in enumerate(zip(headers, col_widths_in)):
         cell = hdr_row.cells[i]
@@ -236,17 +245,11 @@ def generate_word(events: list[dict], case_name: str) -> io.BytesIO:
     for idx, event in enumerate(events, 1):
         sig = event.get("significance", "Medium")
         row = table.add_row()
-
         values = [
-            str(idx),
-            event.get("date", "Unknown"),
-            event.get("event_type", ""),
-            event.get("provider", ""),
-            event.get("description", ""),
-            sig,
+            str(idx), event.get("date", "Unknown"), event.get("event_type", ""),
+            event.get("provider", ""), event.get("description", ""), sig,
             str(event.get("page_ref", "")),
         ]
-
         for i, (val, w) in enumerate(zip(values, col_widths_in)):
             cell = row.cells[i]
             cell.width = Inches(w)
@@ -254,8 +257,7 @@ def generate_word(events: list[dict], case_name: str) -> io.BytesIO:
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER if i != 4 else WD_ALIGN_PARAGRAPH.LEFT
             run = p.add_run(val)
             run.font.size = Pt(8)
-
-            if i == 5:  # Significance column
+            if i == 5:
                 _set_cell_bg(cell, sig_colors.get(sig, "A6A6A6"))
                 run.bold = True
                 if sig in ("Critical", "High", "Low"):
