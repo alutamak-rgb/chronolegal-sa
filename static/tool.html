@@ -1,294 +1,365 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChronoLegal AI — Generate Chronology</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ChronoLegal AI — Discrepancy Analysis Tool. Compare hospital records against expert reports.">
+  <title>ChronoLegal AI — Analysis Tool</title>
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f0f4f8;
-      min-height: 100vh;
-      padding: 24px;
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy:  '#1F4E79',
+              light: '#2B6A9E',
+              dark:  '#153A5C',
+              gold:  '#C9A84C',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+          }
+        }
+      }
     }
+  </script>
 
-    nav {
-      max-width: 760px;
-      margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    nav a {
-      text-decoration: none;
-      color: #1F4E79;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    nav a:hover { text-decoration: underline; }
-
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 40px;
-      max-width: 760px;
-      margin: 0 auto;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-    }
-
-    .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-    .logo-icon {
-      width: 38px; height: 38px;
-      background: #1F4E79;
-      border-radius: 9px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-    }
-    h1 { font-size: 22px; font-weight: 700; color: #1F4E79; }
-    .tagline { color: #64748b; font-size: 14px; margin-bottom: 32px; margin-left: 50px; }
-
-    .field-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-
-    input[type="text"], select {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1.5px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      color: #1e293b;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    input[type="text"]:focus, select:focus { border-color: #1F4E79; }
-
-    .upload-zone {
-      border: 2px dashed #94a3b8;
-      border-radius: 12px;
-      padding: 40px 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: #f8fafc;
-      margin-bottom: 16px;
-    }
-    .upload-zone:hover, .upload-zone.dragover { border-color: #1F4E79; background: #eff6ff; }
-    .upload-zone h2 { font-size: 15px; font-weight: 600; color: #334155; margin-bottom: 4px; }
-    .upload-zone p { font-size: 13px; color: #94a3b8; }
-    .upload-icon { font-size: 32px; margin-bottom: 10px; }
-
-    input[type="file"] { display: none; }
-
-    .file-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: #f1f5f9;
-      border-radius: 8px;
-      font-size: 13px;
-      color: #475569;
-    }
-    .file-item .file-name { flex: 1; font-weight: 600; color: #1e293b; }
-    .remove-btn { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 16px; padding: 0 4px; }
-    .remove-btn:hover { color: #ef4444; }
-
-    .btn {
-      display: block; width: 100%;
-      padding: 14px;
-      background: #1F4E79; color: #fff;
-      font-size: 15px; font-weight: 600;
-      border: none; border-radius: 10px;
-      cursor: pointer; transition: background 0.2s;
-      margin-top: 20px;
-    }
-    .btn:hover:not(:disabled) { background: #164069; }
-    .btn:disabled { background: #94a3b8; cursor: not-allowed; }
-
-    .status { display: none; margin-top: 16px; padding: 14px 16px; border-radius: 10px; font-size: 14px; font-weight: 500; }
-    .status.processing { display: flex; align-items: center; gap: 10px; background: #eff6ff; color: #1d4ed8; }
-    .status.success { display: block; background: #f0fdf4; color: #15803d; }
-    .status.error { display: block; background: #fef2f2; color: #dc2626; }
-
-    .spinner { width: 18px; height: 18px; border: 3px solid #bfdbfe; border-top-color: #1d4ed8; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .progress-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 10px; overflow: hidden; display: none; }
-    .progress-bar.visible { display: block; }
-    .progress-fill { height: 100%; background: #1d4ed8; border-radius: 2px; width: 0%; transition: width 0.4s ease; }
-
-    .note { margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; line-height: 1.7; }
-    .note strong { color: #64748b; }
-  </style>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
-<body>
+<body class="bg-[#F8FAFC] min-h-screen">
 
-  <nav>
-    <a href="/">← Back to ChronoLegal AI</a>
+  <!-- ═══════════════════════════════════════════════════════════
+       NAVBAR
+       ═══════════════════════════════════════════════════════════ -->
+  <nav class="navbar sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="/static/index.html" class="flex items-center gap-2.5 no-underline">
+          <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center font-bold text-white text-sm">CL</div>
+          <span class="navbar-brand">ChronoLegal<span> AI</span></span>
+        </a>
+        <a href="/static/index.html" class="text-sm font-medium text-white/70 hover:text-white transition-colors">
+          ← Back to Home
+        </a>
+      </div>
+    </div>
   </nav>
 
-  <div class="card">
-    <div class="logo">
-      <div class="logo-icon">⚖️</div>
-      <h1>Generate Chronology</h1>
-    </div>
-    <p class="tagline">Upload one or more medical record PDFs — get a complete injury timeline.</p>
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN CONTENT
+       ═══════════════════════════════════════════════════════════ -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-    <div class="field-row">
-      <div>
-        <label for="caseName">Case / Matter Name <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
-        <input type="text" id="caseName" placeholder="e.g. Smith v. Allied Insurance 2024" />
+    <!-- ── PAGE HEADER ────────────────────────────────────── -->
+    <div class="mb-8">
+      <h1 class="text-2xl sm:text-3xl font-bold text-[#1E293B]">Discrepancy Analysis Tool</h1>
+      <p class="text-[#64748B] mt-1">Upload three documents and compare them side-by-side.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         UPLOAD SECTION
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="upload-section" class="card p-6 sm:p-8 mb-8">
+
+      <!-- Step Indicator -->
+      <div class="step-indicator">
+        <div class="step active">
+          <span class="step-number">1</span>
+          <span class="hidden sm:inline">Case Details</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step">
+          <span class="step-number">2</span>
+          <span class="hidden sm:inline">Upload Documents</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step">
+          <span class="step-number">3</span>
+          <span class="hidden sm:inline">Review Matrix</span>
+        </div>
       </div>
-      <div>
-        <label for="outputFormat">Output Format</label>
-        <select id="outputFormat">
-          <option value="excel">Excel (.xlsx) — recommended</option>
-          <option value="word">Word (.docx)</option>
-        </select>
+
+      <!-- Case Information Form -->
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold text-[#1E293B] mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#1F4E79]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 5h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Case Information
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="case-reference" class="block text-sm font-medium text-[#475569] mb-1.5">
+              Case Reference <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="case-reference"
+                   class="w-full px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:ring-2 focus:ring-[#1F4E79]/20 focus:border-[#1F4E79] outline-none transition-shadow"
+                   placeholder="e.g. RAF/2024/001234">
+          </div>
+          <div>
+            <label for="attorney-name" class="block text-sm font-medium text-[#475569] mb-1.5">
+              Instructing Attorney <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="attorney-name"
+                   class="w-full px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:ring-2 focus:ring-[#1F4E79]/20 focus:border-[#1F4E79] outline-none transition-shadow"
+                   placeholder="Your name">
+          </div>
+          <div>
+            <label for="claimant-name" class="block text-sm font-medium text-[#475569] mb-1.5">
+              Claimant / Plaintiff
+            </label>
+            <input type="text" id="claimant-name"
+                   class="w-full px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:ring-2 focus:ring-[#1F4E79]/20 focus:border-[#1F4E79] outline-none transition-shadow"
+                   placeholder="Claimant full name">
+          </div>
+          <div>
+            <label for="mva-date" class="block text-sm font-medium text-[#475569] mb-1.5">
+              Date of Accident
+            </label>
+            <input type="date" id="mva-date"
+                   class="w-full px-4 py-2.5 border border-[#E2E8F0] rounded-lg text-sm focus:ring-2 focus:ring-[#1F4E79]/20 focus:border-[#1F4E79] outline-none transition-shadow">
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <div class="upload-icon">📄</div>
-      <h2>Drop PDFs here or click to upload</h2>
-      <p>Multiple files supported — all records will be merged into one chronology</p>
-    </div>
-    <input type="file" id="fileInput" accept=".pdf" multiple />
+      <!-- Upload Slots -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-[#1E293B] mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#1F4E79]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg>
+          Upload Documents
+          <span class="text-xs font-normal text-[#94A3B8] ml-2">(PDF only — max 25MB each)</span>
+        </h2>
 
-    <div class="file-list" id="fileList"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Slot 1: Hospital Record -->
+          <div class="drop-zone" data-slot="hospital">
+            <div class="drop-zone-placeholder">
+              <div class="drop-zone-icon">
+                <svg class="w-10 h-10 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+              </div>
+              <div class="drop-zone-label">Hospital Record</div>
+              <div class="drop-zone-hint">Drop PDF or click to browse</div>
+            </div>
+            <div class="drop-zone-file-name"></div>
+            <button class="drop-zone-remove" type="button">✕ Remove</button>
+            <input type="file" class="drop-zone-input hidden" accept=".pdf,application/pdf">
+          </div>
 
-    <div class="progress-bar" id="progressBar">
-      <div class="progress-fill" id="progressFill"></div>
-    </div>
+          <!-- Slot 2: Expert Report A -->
+          <div class="drop-zone" data-slot="expertA">
+            <div class="drop-zone-placeholder">
+              <div class="drop-zone-icon">
+                <svg class="w-10 h-10 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+              </div>
+              <div class="drop-zone-label">Expert Report A</div>
+              <div class="drop-zone-hint">Drop PDF or click to browse</div>
+            </div>
+            <div class="drop-zone-file-name"></div>
+            <button class="drop-zone-remove" type="button">✕ Remove</button>
+            <input type="file" class="drop-zone-input hidden" accept=".pdf,application/pdf">
+          </div>
 
-    <button class="btn" id="processBtn" onclick="processFiles()" disabled>
-      Generate Chronology
-    </button>
+          <!-- Slot 3: Expert Report B -->
+          <div class="drop-zone" data-slot="expertB">
+            <div class="drop-zone-placeholder">
+              <div class="drop-zone-icon">
+                <svg class="w-10 h-10 mx-auto" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+              </div>
+              <div class="drop-zone-label">Expert Report B</div>
+              <div class="drop-zone-hint">Drop PDF or click to browse</div>
+            </div>
+            <div class="drop-zone-file-name"></div>
+            <button class="drop-zone-remove" type="button">✕ Remove</button>
+            <input type="file" class="drop-zone-input hidden" accept=".pdf,application/pdf">
+          </div>
+        </div>
+      </div>
 
-    <div class="status" id="status"></div>
+      <!-- Analyze Button -->
+      <div class="flex items-center justify-between pt-4 border-t border-[#E2E8F0]">
+        <p class="text-xs text-[#94A3B8] hidden sm:block">
+          By uploading, you confirm these documents are for case analysis purposes under attorney-client privilege.
+        </p>
+        <button id="btn-analyze" disabled
+                class="btn-primary ml-auto">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          Analyze Documents
+        </button>
+      </div>
+    </section>
 
-    <div class="note">
-      <strong>Best results:</strong> Text-based PDFs (not scanned images). Supports multi-volume records up to 50 MB per file.<br>
-      <strong>Multiple files:</strong> Upload all volumes at once — they'll be processed and merged into a single timeline.
+    <!-- ═══════════════════════════════════════════════════════════
+         RESULTS SECTION (initially hidden)
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="results-section" class="hidden">
+
+      <!-- Summary Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-card">
+          <div class="stat-value text-[#1F4E79]" id="stat-total">8</div>
+          <div class="stat-label">Timeline Events</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value text-[#DC2626]" id="stat-high">4</div>
+          <div class="stat-label">High Risk</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value text-[#CA8A04]" id="stat-medium">2</div>
+          <div class="stat-label">Medium Risk</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value text-[#16A34A]" id="stat-low">2</div>
+          <div class="stat-label">Low Risk</div>
+        </div>
+      </div>
+
+      <!-- Matrix Header with Filters -->
+      <div class="card p-4 sm:p-6 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <!-- Left: Title & case info -->
+          <div>
+            <h2 class="text-xl font-bold text-[#1E293B]">Discrepancy Matrix</h2>
+            <div class="flex flex-wrap items-center gap-3 mt-2 text-xs text-[#64748B]">
+              <span class="inline-flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#1F4E79]"></span>
+                Case: <strong class="text-[#1E293B]" id="result-case-ref">—</strong>
+              </span>
+              <span>|</span>
+              <span>Claimant: <strong class="text-[#1E293B]" id="result-claimant">—</strong></span>
+              <span>|</span>
+              <span>Attorney: <strong class="text-[#1E293B]" id="result-attorney">—</strong></span>
+              <span>|</span>
+              <span>MVA: <strong class="text-[#1E293B]" id="result-mva-date">—</strong></span>
+            </div>
+          </div>
+
+          <!-- Right: Filter pills & actions -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-[#64748B] mr-1">Filter:</span>
+            <button id="filter-all"
+                    class="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#1F4E79] text-white transition-colors">
+              All
+            </button>
+            <button id="filter-high"
+                    class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-[#64748B] border border-[#E2E8F0] hover:bg-[#FEE2E2] hover:text-[#DC2626] hover:border-[#DC2626] transition-colors">
+              High Risk
+            </button>
+            <button id="filter-medium"
+                    class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-[#64748B] border border-[#E2E8F0] hover:bg-[#FEF9C3] hover:text-[#CA8A04] hover:border-[#CA8A04] transition-colors">
+              Medium Risk
+            </button>
+            <button id="filter-low"
+                    class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-[#64748B] border border-[#E2E8F0] hover:bg-[#DCFCE7] hover:text-[#16A34A] hover:border-[#16A34A] transition-colors">
+              Low Risk
+            </button>
+
+            <span class="w-px h-5 bg-[#E2E8F0] mx-2 hidden sm:block"></span>
+
+            <button id="btn-back-upload"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#64748B] hover:text-[#1E293B] hover:bg-[#F1F5F9] transition-colors flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+              New Analysis
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matrix Table -->
+      <div class="card overflow-hidden">
+        <div class="matrix-table-wrapper">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th class="col-date">Date &amp; Time</th>
+                <th class="col-event">Event</th>
+                <th class="col-note">Hospital Record</th>
+                <th class="col-note">Expert A</th>
+                <th class="col-note">Expert B</th>
+                <th class="text-center">Risk Level</th>
+                <th>Strategic Alert</th>
+              </tr>
+            </thead>
+            <tbody id="matrix-tbody">
+              <!-- Rendered by matrix.js -->
+              <!-- Fallback: show if JS disabled -->
+              <tr>
+                <td colspan="7" class="text-center py-12 text-[#94A3B8]">
+                  <div class="text-lg mb-2">⏳</div>
+                  <p>Loading discrepancy matrix...</p>
+                  <p class="text-xs mt-1">Enable JavaScript to view the interactive matrix.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex flex-wrap items-center gap-4 mt-4 px-2">
+        <span class="text-xs text-[#94A3B8]">Legend:</span>
+        <div class="flex items-center gap-1.5">
+          <span class="risk-badge risk-badge-low text-[10px]"><span class="risk-badge-dot risk-badge-dot-low"></span> Low</span>
+          <span class="text-[10px] text-[#94A3B8]">Minor discrepancy</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="risk-badge risk-badge-medium text-[10px]"><span class="risk-badge-dot risk-badge-dot-medium"></span> Medium</span>
+          <span class="text-[10px] text-[#94A3B8]">Moderate impact</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="risk-badge risk-badge-high text-[10px]"><span class="risk-badge-dot risk-badge-dot-high"></span> High</span>
+          <span class="text-[10px] text-[#94A3B8]">Quantum-threatening</span>
+        </div>
+        <span class="text-[10px] text-[#94A3B8] ml-auto">
+          <span class="text-[10px] font-bold text-[#1F4E79] bg-[#F0F6FB] px-1 py-0.5 rounded">HR</span> Hospital &nbsp;
+          <span class="text-[10px] font-bold text-[#C9A84C] bg-[#FDF8ED] px-1 py-0.5 rounded">A</span> Expert A &nbsp;
+          <span class="text-[10px] font-bold text-[#7C3AED] bg-[#F5F3FF] px-1 py-0.5 rounded">B</span> Expert B
+        </span>
+      </div>
+
+      <!-- Export / Actions footer -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mt-8 pt-6 border-t border-[#E2E8F0]">
+        <p class="text-xs text-[#94A3B8]">
+          ⚡ Pro tip: Focus on High Risk items first — these have the greatest quantum impact.
+        </p>
+        <div class="flex gap-3">
+          <button class="btn-secondary text-sm !py-2 !px-4" onclick="window.print()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Print / Save PDF
+          </button>
+          <button class="btn-primary text-sm !py-2 !px-4">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Export Report
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LOADING OVERLAY
+       ═══════════════════════════════════════════════════════════ -->
+  <div id="spinner-overlay" class="spinner-overlay">
+    <div class="text-center">
+      <div class="spinner mx-auto mb-6"></div>
+      <p id="spinner-text" class="spinner-text">Processing documents...</p>
+      <p class="text-xs text-[#94A3B8] mt-2">This may take up to 2 minutes for large PDFs</p>
     </div>
   </div>
 
-  <script>
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const processBtn = document.getElementById('processBtn');
-    const statusEl = document.getElementById('status');
-    const fileListEl = document.getElementById('fileList');
-    const progressBar = document.getElementById('progressBar');
-    const progressFill = document.getElementById('progressFill');
-    let selectedFiles = [];
-    let progressTimer = null;
+  <!-- ═══════════════════════════════════════════════════════════
+       SCRIPTS
+       ═══════════════════════════════════════════════════════════ -->
+  <script src="/static/js/upload.js"></script>
+  <script src="/static/js/matrix.js"></script>
 
-    fileInput.addEventListener('change', e => addFiles(Array.from(e.target.files)));
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      addFiles(Array.from(e.dataTransfer.files));
-    });
-
-    function addFiles(files) {
-      const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
-      if (pdfs.length !== files.length) showStatus('Non-PDF files were ignored.', 'error');
-      pdfs.forEach(f => {
-        if (!selectedFiles.find(sf => sf.name === f.name && sf.size === f.size)) {
-          selectedFiles.push(f);
-        }
-      });
-      renderFileList();
-    }
-
-    function removeFile(index) {
-      selectedFiles.splice(index, 1);
-      renderFileList();
-    }
-
-    function renderFileList() {
-      fileListEl.innerHTML = '';
-      selectedFiles.forEach((f, i) => {
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        item.innerHTML = `<span>📎</span><span class="file-name">${f.name}</span><span style="color:#94a3b8">(${(f.size/1024/1024).toFixed(1)} MB)</span><button class="remove-btn" onclick="removeFile(${i})">✕</button>`;
-        fileListEl.appendChild(item);
-      });
-      processBtn.disabled = selectedFiles.length === 0;
-      hideStatus();
-    }
-
-    function simulateProgress() {
-      let pct = 0;
-      progressBar.classList.add('visible');
-      progressFill.style.width = '0%';
-      progressTimer = setInterval(() => {
-        if (pct < 88) { pct += Math.random() * 2.5; progressFill.style.width = Math.min(pct, 88) + '%'; }
-      }, 900);
-    }
-
-    function completeProgress() {
-      clearInterval(progressTimer);
-      progressFill.style.width = '100%';
-      setTimeout(() => { progressBar.classList.remove('visible'); progressFill.style.width = '0%'; }, 700);
-    }
-
-    async function processFiles() {
-      if (selectedFiles.length === 0) return;
-      processBtn.disabled = true;
-      const plural = selectedFiles.length > 1 ? `${selectedFiles.length} files` : '1 file';
-      showStatus(`<div class="spinner"></div><span>Processing ${plural} — this may take 30–90 seconds…</span>`, 'processing');
-      simulateProgress();
-
-      const formData = new FormData();
-      selectedFiles.forEach(f => formData.append('files', f));
-      formData.append('case_name', document.getElementById('caseName').value);
-      formData.append('output_format', document.getElementById('outputFormat').value);
-
-      try {
-        const response = await fetch('/process', { method: 'POST', body: formData });
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({ detail: 'Processing failed.' }));
-          throw new Error(err.detail || 'Processing failed.');
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const fmt = document.getElementById('outputFormat').value;
-        const caseName = document.getElementById('caseName').value.trim().replace(/\s+/g,'_') || 'records';
-        a.download = `chronology_${caseName}.${fmt === 'word' ? 'docx' : 'xlsx'}`;
-        a.click();
-        URL.revokeObjectURL(url);
-        completeProgress();
-        showStatus('✅ Chronology generated — check your downloads.', 'success');
-      } catch (err) {
-        completeProgress();
-        showStatus(`❌ ${err.message}`, 'error');
-      }
-      processBtn.disabled = false;
-    }
-
-    function showStatus(html, type) { statusEl.innerHTML = html; statusEl.className = 'status ' + type; }
-    function hideStatus() { statusEl.className = 'status'; statusEl.innerHTML = ''; }
-  </script>
 </body>
 </html>
