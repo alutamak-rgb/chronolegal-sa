@@ -1,269 +1,306 @@
-import os
-import io
-import json
-import time
-import fitz
-import anthropic
-from datetime import datetime
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from docx import Document
-from docx.shared import Pt, RGBColor, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
-
-_client: anthropic.Anthropic | None = None
-
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        key = os.environ.get("ANTHROPIC_API_KEY")
-        if not key:
-            raise RuntimeError("ANTHROPIC_API_KEY not set in environment")
-        _client = anthropic.Anthropic(api_key=key)
-    return _client
-
-CHUNK_SIZE = 25
-MAX_RETRIES = 3
-
-EXTRACTION_PROMPT = """You are a specialist in legal medical chronology creation for personal injury litigation.
-
-Extract every medically significant event from the records below. For each event return:
-- "date": ISO format (YYYY-MM-DD). If only month/year known use first of month. If unknown use "Unknown".
-- "event_type": one of Visit, Diagnosis, Treatment, Procedure, Test, Imaging, Surgery, Prescription, Referral, Discharge, Other
-- "provider": doctor name and/or facility (e.g. "Dr. John Smith, City General Hospital")
-- "description": 1-2 sentences — what happened, what was found, what was prescribed
-- "significance": Critical | High | Medium | Low  (Critical = directly relates to injury mechanism or permanent impairment)
-- "page_ref": page number(s) where this event appears
-
-Focus on events relevant to personal injury: onset of injury, diagnoses, treatments, test results, referrals, functional limitations, prognosis statements.
-
-Return ONLY a valid JSON array. No explanation, no markdown fences.
-
-Medical records:
+"""
+ChronoLegal AI — South Africa Edition
+Core extraction engine: PDF → DeepSeek → Discrepancy Matrix
 """
 
+import os
+import json
+import time
+import io
+import httpx
+import fitz  # PyMuPDF
+from datetime import datetime
 
-def extract_chronology_from_pdfs(pdf_list: list[tuple[bytes, str]], max_pages: int = 500) -> list[dict]:
-    all_events = []
-    total_pages_processed = 0
+# ── DeepSeek client ────────────────────────────────────────────────────────
+DEEPSEEK_BASE = "https://api.deepseek.com/v1"
+DEEPSEEK_MODEL = "deepseek-chat"
+MAX_RETRIES = 3
+CHUNK_SIZE = 25  # pages per chunk
+MAX_PAGES_TOTAL = 500
 
-    for pdf_bytes, filename in pdf_list:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        total_pages = len(doc)
+# ── SA Medico-Legal System Prompt ──────────────────────────────────────────
+# Engineered by Prompt Engineer agent — Role→Constraints→Reasoning→Examples
+# structure with embedded SA law context and 2 few-shot examples
+SYSTEM_PROMPT = """You are ChronoLegal AI, an SA medico-legal analyst for plaintiff attorneys in RAF and medical negligence High Court matters. Analyze three documents (hospital records, Expert A report, Expert B report) and output ONLY a discrepancy matrix in valid JSON. No commentary, no markdown.
 
-        if total_pages_processed + total_pages > max_pages:
-            pages_to_process = max(0, max_pages - total_pages_processed)
-        else:
-            pages_to_process = total_pages
+### ROLE
+You act as a medico-legal expert fluent in RAF Act 56/1996 heads of damages (past/future medical, loss of earnings, general damages), Uniform Rules 36(9)(a)/(b) and 38(2), the Michael test for logical defensibility of expert evidence, and apportionment of pre-existing conditions under RAF Amendment Act 19/2005.
 
-        for start in range(0, pages_to_process, CHUNK_SIZE):
-            end = min(start + CHUNK_SIZE, pages_to_process)
-            chunk_text = ""
-            for page_num in range(start, end):
-                page = doc[page_num]
-                text = page.get_text()
-                if text.strip():
-                    chunk_text += f"\n\n--- PAGE {page_num + 1} ({filename}) ---\n{text}"
+### CONSTRAINTS
+1. Output raw JSON per the Examples schema. No fences, preamble, or trailing text.
+2. Cite specific content from each source per entry. If a source is silent, write "Not addressed" — never invent data.
+3. riskLevel: "Low" = trivial (typo, immaterial date). "Medium" = material, affects one head of damage. "High" = undermines causation, quantum, or witness credibility.
+4. strategicAlert: One sentence citing SA law (RAF Regulation 3, Amendment Act 19/2005, Michael test, Rule 36).
 
-            if not chunk_text.strip():
-                continue
+### REASONING CHAIN (apply per discrepancy)
+1. Identify conflict across the three sources.
+2. Classify domain: GCS/clinical severity, pre-existing condition, employability, timeline.
+3. Assess materiality: which head of damage impacted.
+4. Determine exploitability: cross-examination weapon or plaintiff vulnerability.
+5. Ground in SA law: RAF cap, apportionment, Michael test, Practice Directive.
 
-            events = _call_claude(chunk_text)
-            all_events.extend(events)
+### SA MEDICO-LEGAL KNOWLEDGE
+- GCS: Hospital GCS (contemporaneous) may conflict with expert-retrospective GCS due to intubation, sedation, or alcohol. GCS 13 vs 15 changes TBI-severity classification and RAF "serious injury" threshold (Regulation 3).
+- Pre-existing conditions: Distinguish vulnerability (thin-skull: defendant takes plaintiff as found) from active disability (apportionment per RAF Amendment Act 19/2005). Hospital records carry greater evidentiary weight than retrospective expert opinion on prior degeneration.
+- Employability: Occupational therapists evaluate physical capacity; industrial psychologists project labour-market earnings. Job-category conflicts directly alter loss-of-earnings quantum.
+- Expert partiality: The Michael test (SCA) requires opinions be "logically defensible." If an expert's conclusion contradicts hospital records without explanation, their report is vulnerable to exclusion.
+- Practice: Expert summaries are exchanged per Rule 36(9)(a)/(b). Pre-trial discrepancies must be narrowed via joint minutes or risk adverse cost orders.
 
-        total_pages_processed += pages_to_process
-        doc.close()
+### EXAMPLES
 
-        if total_pages_processed >= max_pages:
-            break
+Ex1 — GCS Conflict:
+Input: Hospital: "GCS 15/15, no LOC, discharged." Expert A: "Retrospective GCS 13, moderate TBI, 6% WPI." Expert B: "GCS 14, mild TBI, 1% WPI."
+Output: {"timeline":[{"date":"2024-06-12","eventOrInjury":"MVA — side-impact collision","hospitalRecordNote":"GCS 15/15. No LOC. Discharged same day.","expertANote":"Retrospective GCS 13/15. Moderate TBI, 6% WPI.","expertBNote":"GCS 14/15. Mild TBI, 1% WPI.","riskLevel":"High","strategicAlert":"Hospital GCS 15/15 with no LOC contradicts both TBI opinions; general damages may fail RAF Regulation 3 serious-injury threshold. Cross-examine under Michael test — contemporaneous records outweigh retrospective opinion."}]}
 
-    def sort_key(e):
-        d = e.get("date", "Unknown")
-        if d == "Unknown":
-            return (1, datetime.max)
-        try:
-            return (0, datetime.strptime(d, "%Y-%m-%d"))
-        except ValueError:
-            return (1, datetime.max)
+Ex2 — Pre-existing Condition/Employability:
+Input: Hospital: "Pre-existing lumbar degeneration." Expert A (ortho): "Trauma aggravated asymptomatic condition, total disability." Expert B (OT): "Constitutional, not trauma-related; fit for sedentary work."
+Output: {"timeline":[{"date":"2024-09-03","eventOrInjury":"Rear-end collision — lumbar","hospitalRecordNote":"Pre-existing lumbar degeneration on X-ray.","expertANote":"Aggravation of asymptomatic degeneration; total permanent disability.","expertBNote":"Constitutional degeneration; fit for sedentary employment.","riskLevel":"High","strategicAlert":"Apportionment risk per RAF Amendment Act 19/2005 — loss-of-earnings may reduce 50-80%. Commission joint minute under Rule 36(9)(a); consider rheumatologist tie-breaker."}]}
+"""
 
-    all_events.sort(key=sort_key)
-    return all_events
+USER_PROMPT_TEMPLATE = """Analyze the following three medico-legal documents and produce a discrepancy matrix as strict JSON.
+
+=== HOSPITAL RECORDS ===
+{hospital_record}
+
+=== EXPERT A REPORT ===
+{expert_a_report}
+
+=== EXPERT B REPORT ===
+{expert_b_report}
+
+Produce the DiscrepancyMatrix JSON output now."""
 
 
-def _call_claude(text: str) -> list[dict]:
+def _call_deepseek(system_prompt: str, user_content: str) -> dict:
+    """Call DeepSeek API and return parsed JSON response."""
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise RuntimeError("DEEPSEEK_API_KEY not set in environment")
+
     for attempt in range(MAX_RETRIES):
         try:
-            client = _get_client()
-            message = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=4096,
-                messages=[{"role": "user", "content": EXTRACTION_PROMPT + text}],
-            )
-            raw = message.content[0].text.strip()
-            if raw.startswith("```"):
-                lines = raw.split("\n")
-                raw = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
-            events = json.loads(raw)
-            return events if isinstance(events, list) else []
-        except json.JSONDecodeError:
+            with httpx.Client(timeout=120.0) as client:
+                resp = client.post(
+                    f"{DEEPSEEK_BASE}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": DEEPSEEK_MODEL,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_content},
+                        ],
+                        "temperature": 0.1,      # Low temp for deterministic legal analysis
+                        "max_tokens": 8192,       # Large enough for detailed matrix
+                        "response_format": {"type": "json_object"},
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"].strip()
+
+                # Parse JSON — sometimes wrapped in markdown fences
+                if content.startswith("```"):
+                    lines = content.split("\n")
+                    content = "\n".join(
+                        lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+                    )
+
+                result = json.loads(content)
+
+                # Validate structure
+                if "timeline" not in result or not isinstance(result["timeline"], list):
+                    raise ValueError("Response missing 'timeline' array")
+
+                return result
+
+        except (json.JSONDecodeError, ValueError) as e:
             if attempt < MAX_RETRIES - 1:
                 time.sleep(1 * (attempt + 1))
                 continue
-            return []
+            raise RuntimeError(f"Failed to parse DeepSeek response after {MAX_RETRIES} attempts: {e}")
+        except httpx.HTTPStatusError as e:
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise RuntimeError(f"DeepSeek API error: {e.response.status_code} — {e.response.text[:300]}")
         except Exception:
             if attempt < MAX_RETRIES - 1:
                 time.sleep(2 * (attempt + 1))
                 continue
             raise
-    return []
+
+    raise RuntimeError("DeepSeek call failed after all retries")
 
 
-# ── EXCEL ────────────────────────────────────────────────────────────────────
+def extract_text_from_pdf(pdf_bytes: bytes, filename: str, max_pages: int = 200) -> list[tuple[str, str, int]]:
+    """Extract text from a PDF, returning list of (filename, page_text, page_number)."""
+    pages = []
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total = min(len(doc), max_pages)
 
-def generate_excel(events: list[dict], case_name: str) -> io.BytesIO:
+    for page_num in range(total):
+        text = doc[page_num].get_text()
+        if text.strip():
+            pages.append((filename, text.strip(), page_num + 1))
+    doc.close()
+    return pages
+
+
+def build_document_text(pages: list[tuple[str, str, int]], label: str) -> str:
+    """Build paginated text block for a document."""
+    if not pages:
+        return "[No text could be extracted from this document]"
+
+    lines = []
+    total_chars = 0
+    max_chars = 25000  # Cap to avoid exceeding context window
+
+    for filename, text, page_num in pages:
+        header = f"\n--- {label} | Page {page_num} ---\n"
+        if total_chars + len(header) + len(text) > max_chars:
+            remaining = max_chars - total_chars - len(header)
+            if remaining > 200:
+                lines.append(header + text[:remaining] + "\n[... truncated — page limit reached]")
+            break
+        lines.append(header + text)
+        total_chars += len(header) + len(text)
+
+    return "\n".join(lines)
+
+
+def analyze_case_bundle(
+    hospital_pdf: tuple[bytes, str],
+    expert_a_pdf: tuple[bytes, str],
+    expert_b_pdf: tuple[bytes, str],
+    max_pages_per_doc: int = 200,
+) -> dict:
+    """
+    Main entry point: takes 3 PDFs, returns DiscrepancyMatrix.
+    
+    Returns dict with:
+    - timeline: the discrepancy matrix
+    - metadata: processing info
+    """
+    # Extract text from each PDF
+    hospital_pages = extract_text_from_pdf(hospital_pdf[0], hospital_pdf[1], max_pages_per_doc)
+    expert_a_pages = extract_text_from_pdf(expert_a_pdf[0], expert_a_pdf[1], max_pages_per_doc)
+    expert_b_pages = extract_text_from_pdf(expert_b_pdf[0], expert_b_pdf[1], max_pages_per_doc)
+
+    total_pages = len(hospital_pages) + len(expert_a_pages) + len(expert_b_pages)
+    if total_pages == 0:
+        raise ValueError("No extractable text found in any of the uploaded PDFs")
+
+    # Build document blocks
+    hospital_text = build_document_text(hospital_pages, "HOSPITAL RECORD")
+    expert_a_text = build_document_text(expert_a_pages, "EXPERT REPORT A")
+    expert_b_text = build_document_text(expert_b_pages, "EXPERT REPORT B")
+
+    # Format user prompt
+    user_prompt = USER_PROMPT_TEMPLATE.format(
+        hospital_record=hospital_text,
+        expert_a_report=expert_a_text,
+        expert_b_report=expert_b_text,
+    )
+
+    # Call DeepSeek
+    start_time = time.time()
+    result = _call_deepseek(SYSTEM_PROMPT, user_prompt)
+    elapsed = time.time() - start_time
+
+    # Add metadata
+    result["metadata"] = {
+        "model": DEEPSEEK_MODEL,
+        "processedAt": datetime.utcnow().isoformat() + "Z",
+        "processingTimeSeconds": round(elapsed, 2),
+        "totalPagesAnalyzed": total_pages,
+        "hospitalPages": len(hospital_pages),
+        "expertAPages": len(expert_a_pages),
+        "expertBPages": len(expert_b_pages),
+        "hospitalFilename": hospital_pdf[1],
+        "expertAFilename": expert_a_pdf[1],
+        "expertBFilename": expert_b_pdf[1],
+    }
+
+    return result
+
+
+# ── Excel Export (preserved from original, adapted for matrix) ─────────────
+
+def generate_matrix_excel(result: dict, case_name: str) -> io.BytesIO:
+    """Generate Excel workbook from discrepancy matrix."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    timeline = result.get("timeline", [])
     wb = Workbook()
     ws = wb.active
-    ws.title = "Chronology"
+    ws.title = "Discrepancy Matrix"
 
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
     thin = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    sig_colors = {"Critical": "C00000", "High": "E36C09", "Medium": "F2C500", "Low": "A6A6A6"}
-    sig_font_colors = {"Critical": "FFFFFF", "High": "FFFFFF", "Medium": "000000", "Low": "FFFFFF"}
+    risk_colors = {"High": "C00000", "Medium": "E36C09", "Low": "4CAF50"}
+    risk_font_colors = {"High": "FFFFFF", "Medium": "FFFFFF", "Low": "FFFFFF"}
 
-    headers = ["#", "Date", "Event Type", "Provider", "Description", "Significance", "Page"]
-    col_widths = [5, 14, 16, 28, 65, 14, 8]
+    headers = ["Date", "Event / Injury", "Hospital Record", "Expert A Note", "Expert B Note", "Risk", "Strategic Alert"]
+    col_widths = [12, 22, 30, 30, 30, 10, 45]
 
     for col, (header, width) in enumerate(zip(headers, col_widths), 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
-        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border = border
         ws.column_dimensions[cell.column_letter].width = width
 
-    ws.row_dimensions[1].height = 20
-
-    for idx, event in enumerate(events, 1):
-        row = idx + 1
-        sig = event.get("significance", "Medium")
-        ws.cell(row=row, column=1, value=idx).alignment = Alignment(horizontal="center", vertical="center")
-        ws.cell(row=row, column=2, value=event.get("date", "Unknown")).alignment = Alignment(horizontal="center", vertical="top")
-        ws.cell(row=row, column=3, value=event.get("event_type", "")).alignment = Alignment(horizontal="left", vertical="top")
-        ws.cell(row=row, column=4, value=event.get("provider", "")).alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-        ws.cell(row=row, column=5, value=event.get("description", "")).alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-        sig_cell = ws.cell(row=row, column=6, value=sig)
-        sig_cell.fill = PatternFill(start_color=sig_colors.get(sig, "A6A6A6"), end_color=sig_colors.get(sig, "A6A6A6"), fill_type="solid")
-        sig_cell.font = Font(color=sig_font_colors.get(sig, "FFFFFF"), bold=True, size=10)
-        sig_cell.alignment = Alignment(horizontal="center", vertical="center")
-        ws.cell(row=row, column=7, value=event.get("page_ref", "")).alignment = Alignment(horizontal="center", vertical="top")
-        for col in range(1, 8):
-            ws.cell(row=row, column=col).border = border
-        ws.row_dimensions[row].height = 40
+    for idx, event in enumerate(timeline, 2):
+        risk = event.get("riskLevel", "Low")
+        row_data = [
+            event.get("date", ""),
+            event.get("eventOrInjury", ""),
+            event.get("hospitalRecordNote", ""),
+            event.get("expertANote", ""),
+            event.get("expertBNote", ""),
+            risk,
+            event.get("strategicAlert", ""),
+        ]
+        for col, val in enumerate(row_data, 1):
+            cell = ws.cell(row=idx, column=col, value=val)
+            cell.border = border
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+            if col == 6:  # Risk level
+                cell.fill = PatternFill(
+                    start_color=risk_colors.get(risk, "A6A6A6"),
+                    end_color=risk_colors.get(risk, "A6A6A6"),
+                    fill_type="solid",
+                )
+                cell.font = Font(bold=True, color=risk_font_colors.get(risk, "FFFFFF"))
+                cell.alignment = Alignment(horizontal="center", vertical="center")
 
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:G{len(events) + 1}"
 
+    # Summary sheet
     sw = wb.create_sheet("Summary")
-    sw.column_dimensions["A"].width = 25
-    sw.column_dimensions["B"].width = 40
-    sw["A1"] = "ChronoLegal AI — Medical Chronology Report"
+    sw["A1"] = "ChronoLegal AI — Discrepancy Matrix Report"
     sw["A1"].font = Font(bold=True, size=14, color="1F4E79")
-    sw.row_dimensions[1].height = 25
     meta = [
-        ("Case / Matter", case_name),
+        ("Case", case_name),
         ("Generated", datetime.now().strftime("%Y-%m-%d %H:%M")),
-        ("Total Events", len(events)),
-        ("Critical Events", sum(1 for e in events if e.get("significance") == "Critical")),
-        ("High Priority Events", sum(1 for e in events if e.get("significance") == "High")),
-        ("Date Range", f"{events[0].get('date', 'Unknown')} → {events[-1].get('date', 'Unknown')}" if events else "N/A"),
+        ("Total Timeline Entries", len(timeline)),
+        ("High Risk Items", sum(1 for e in timeline if e.get("riskLevel") == "High")),
+        ("Medium Risk Items", sum(1 for e in timeline if e.get("riskLevel") == "Medium")),
+        ("Low Risk Items", sum(1 for e in timeline if e.get("riskLevel") == "Low")),
     ]
     for row_num, (label, value) in enumerate(meta, 3):
         sw.cell(row=row_num, column=1, value=label).font = Font(bold=True)
-        sw.cell(row=row_num, column=2, value=value)
+        sw.cell(row=row_num, column=2, value=str(value))
 
     output = io.BytesIO()
     wb.save(output)
-    output.seek(0)
-    return output
-
-
-# ── WORD ─────────────────────────────────────────────────────────────────────
-
-def _set_cell_bg(cell, hex_color: str):
-    tc = cell._tc
-    tcPr = tc.get_or_add_tcPr()
-    shd = OxmlElement("w:shd")
-    shd.set(qn("w:val"), "clear")
-    shd.set(qn("w:color"), "auto")
-    shd.set(qn("w:fill"), hex_color)
-    tcPr.append(shd)
-
-
-def generate_word(events: list[dict], case_name: str) -> io.BytesIO:
-    doc = Document()
-    for section in doc.sections:
-        section.top_margin = Inches(0.75)
-        section.bottom_margin = Inches(0.75)
-        section.left_margin = Inches(0.75)
-        section.right_margin = Inches(0.75)
-
-    title = doc.add_paragraph()
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = title.add_run("MEDICAL CHRONOLOGY REPORT")
-    run.bold = True
-    run.font.size = Pt(16)
-    run.font.color.rgb = RGBColor(0x1F, 0x4E, 0x79)
-
-    sub = doc.add_paragraph()
-    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    sub.add_run(f"Case: {case_name}   |   Generated: {datetime.now().strftime('%Y-%m-%d')}   |   Total Events: {len(events)}")
-    doc.add_paragraph()
-
-    headers = ["#", "Date", "Type", "Provider", "Description", "Significance", "Page"]
-    col_widths_in = [0.3, 0.9, 0.9, 1.6, 3.4, 1.0, 0.5]
-    table = doc.add_table(rows=1, cols=len(headers))
-    table.style = "Table Grid"
-    hdr_row = table.rows[0]
-    for i, (h, w) in enumerate(zip(headers, col_widths_in)):
-        cell = hdr_row.cells[i]
-        cell.width = Inches(w)
-        _set_cell_bg(cell, "1F4E79")
-        p = cell.paragraphs[0]
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(h)
-        run.bold = True
-        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-        run.font.size = Pt(9)
-
-    sig_colors = {"Critical": "C00000", "High": "E36C09", "Medium": "F2C500", "Low": "A6A6A6"}
-
-    for idx, event in enumerate(events, 1):
-        sig = event.get("significance", "Medium")
-        row = table.add_row()
-        values = [
-            str(idx), event.get("date", "Unknown"), event.get("event_type", ""),
-            event.get("provider", ""), event.get("description", ""), sig,
-            str(event.get("page_ref", "")),
-        ]
-        for i, (val, w) in enumerate(zip(values, col_widths_in)):
-            cell = row.cells[i]
-            cell.width = Inches(w)
-            p = cell.paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER if i != 4 else WD_ALIGN_PARAGRAPH.LEFT
-            run = p.add_run(val)
-            run.font.size = Pt(8)
-            if i == 5:
-                _set_cell_bg(cell, sig_colors.get(sig, "A6A6A6"))
-                run.bold = True
-                if sig in ("Critical", "High", "Low"):
-                    run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-
-    output = io.BytesIO()
-    doc.save(output)
     output.seek(0)
     return output

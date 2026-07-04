@@ -1,609 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChronoLegal AI — Medical Chronology for Personal Injury Litigation</title>
-  <meta name="description" content="Turn hundreds of pages of medical records into a complete, colour-coded injury timeline in seconds. Built for personal injury law firms." />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ChronoLegal AI — AI-powered discrepancy analysis for South African medico-legal professionals. Compare hospital records against expert reports in minutes.">
+  <title>ChronoLegal AI — SA Edition</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy:  '#1F4E79',
+              light: '#2B6A9E',
+              dark:  '#153A5C',
+              gold:  '#C9A84C',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/css/styles.css">
+
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --navy: #1F4E79;
-      --navy-dark: #164069;
-      --navy-light: #eff6ff;
-      --accent: #E36C09;
-      --text: #1e293b;
-      --muted: #64748b;
-      --border: #e2e8f0;
+    /* Hero gradient */
+    .hero-gradient {
+      background: linear-gradient(135deg, #153A5C 0%, #1F4E79 40%, #2B6A9E 100%);
     }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: var(--text);
-      background: #fff;
-      line-height: 1.6;
+    .hero-glow {
+      background: radial-gradient(ellipse 60% 60% at 50% 30%, rgba(201,168,76,0.15) 0%, transparent 70%);
     }
-
-    a { color: inherit; text-decoration: none; }
-
-    /* NAV */
-    nav {
+    /* Feature icon circles */
+    .feature-icon-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 18px 48px;
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(8px);
-      z-index: 100;
-    }
-
-    .nav-logo { display: flex; align-items: center; gap: 10px; }
-    .nav-logo-icon {
-      width: 34px; height: 34px;
-      background: var(--navy);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 16px;
-    }
-    .nav-logo span { font-size: 17px; font-weight: 700; color: var(--navy); }
-
-    .nav-links { display: flex; align-items: center; gap: 32px; }
-    .nav-links a { font-size: 14px; color: var(--muted); font-weight: 500; transition: color 0.15s; }
-    .nav-links a:hover { color: var(--navy); }
-
-    .nav-cta {
-      background: var(--navy);
-      color: #fff !important;
-      padding: 9px 22px;
-      border-radius: 8px;
-      font-size: 14px !important;
-      font-weight: 600 !important;
-      transition: background 0.15s !important;
-    }
-    .nav-cta:hover { background: var(--navy-dark) !important; color: #fff !important; }
-
-    /* HERO */
-    .hero {
-      padding: 96px 48px 80px;
-      text-align: center;
-      max-width: 860px;
-      margin: 0 auto;
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--navy-light);
-      color: var(--navy);
-      font-size: 13px;
-      font-weight: 600;
-      padding: 6px 14px;
-      border-radius: 100px;
-      margin-bottom: 28px;
-    }
-
-    .hero h1 {
-      font-size: clamp(36px, 5vw, 56px);
-      font-weight: 800;
-      line-height: 1.1;
-      color: var(--text);
-      margin-bottom: 24px;
-      letter-spacing: -0.02em;
-    }
-
-    .hero h1 span { color: var(--navy); }
-
-    .hero p {
-      font-size: 18px;
-      color: var(--muted);
-      max-width: 580px;
-      margin: 0 auto 40px;
-    }
-
-    .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-
-    .btn-primary {
-      background: var(--navy);
-      color: #fff;
-      padding: 14px 32px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      transition: background 0.2s, transform 0.1s;
-      display: inline-block;
-    }
-    .btn-primary:hover { background: var(--navy-dark); transform: translateY(-1px); }
-
-    .btn-secondary {
-      background: #f1f5f9;
-      color: var(--text);
-      padding: 14px 32px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      transition: background 0.2s;
-      display: inline-block;
-    }
-    .btn-secondary:hover { background: #e2e8f0; }
-
-    /* SOCIAL PROOF BAR */
-    .proof-bar {
-      background: #f8fafc;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 48px;
-      display: flex;
       justify-content: center;
-      gap: 56px;
-      flex-wrap: wrap;
+      font-size: 1.5rem;
     }
-
-    .proof-item { text-align: center; }
-    .proof-number { font-size: 28px; font-weight: 800; color: var(--navy); }
-    .proof-label { font-size: 13px; color: var(--muted); margin-top: 2px; }
-
-    /* PAIN SECTION */
-    .section { padding: 80px 48px; max-width: 1100px; margin: 0 auto; }
-
-    .section-label {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      margin-bottom: 12px;
-    }
-
-    .section h2 {
-      font-size: clamp(26px, 3.5vw, 38px);
-      font-weight: 800;
-      line-height: 1.2;
-      margin-bottom: 20px;
-      letter-spacing: -0.02em;
-    }
-
-    .section > p { font-size: 17px; color: var(--muted); max-width: 600px; margin-bottom: 48px; }
-
-    /* BEFORE / AFTER */
-    .compare {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-top: 48px;
-    }
-
-    .compare-box { border-radius: 14px; padding: 32px; }
-    .compare-box.before { background: #fef2f2; border: 1px solid #fecaca; }
-    .compare-box.after  { background: #f0fdf4; border: 1px solid #bbf7d0; }
-
-    .compare-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 20px; }
-    .compare-box.before h3 { color: #dc2626; }
-    .compare-box.after h3  { color: #16a34a; }
-
-    .compare-box ul { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-    .compare-box li { display: flex; gap: 10px; font-size: 14px; color: #374151; }
-    .compare-box li span:first-child { flex-shrink: 0; font-size: 16px; }
-
-    /* HOW IT WORKS */
-    .how-bg { background: var(--navy-light); }
-
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      margin-top: 48px;
-    }
-
-    .step {
-      background: #fff;
-      border-radius: 14px;
-      padding: 32px 28px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-    }
-
-    .step-num {
-      width: 42px; height: 42px;
-      background: var(--navy);
-      color: #fff;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; font-weight: 800;
-      margin-bottom: 20px;
-    }
-
-    .step h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-    .step p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-
-    /* OUTPUT PREVIEW */
-    .output-preview {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow: hidden;
-      margin-top: 48px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-    }
-
-    .output-preview-header {
-      background: var(--navy);
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .output-preview-header span { color: rgba(255,255,255,0.7); font-size: 13px; }
-
-    .preview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .preview-table th {
-      background: var(--navy);
-      color: #fff;
-      padding: 10px 14px;
-      text-align: left;
-      font-weight: 600;
-    }
-    .preview-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: #374151; }
-    .preview-table tr:last-child td { border-bottom: none; }
-
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 100px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .badge.critical { background: #C00000; color: #fff; }
-    .badge.high { background: #E36C09; color: #fff; }
-    .badge.medium { background: #F2C500; color: #000; }
-
-    /* PRICING */
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
-      margin-top: 48px;
-    }
-
-    .pricing-card {
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 32px 28px;
-      position: relative;
-    }
-
-    .pricing-card.featured {
-      border-color: var(--navy);
-      background: var(--navy-light);
-    }
-
-    .pricing-badge {
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--navy);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 4px 14px;
-      border-radius: 100px;
-      white-space: nowrap;
-    }
-
-    .pricing-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-    .price { font-size: 36px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
-    .price span { font-size: 16px; font-weight: 500; color: var(--muted); }
-    .price-desc { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
-
-    .pricing-card ul { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
-    .pricing-card li { font-size: 14px; display: flex; gap: 8px; }
-    .pricing-card li::before { content: "✓"; color: var(--navy); font-weight: 700; flex-shrink: 0; }
-
-    .btn-outline {
-      display: block;
-      width: 100%;
-      text-align: center;
-      padding: 11px;
-      border: 1.5px solid var(--navy);
-      border-radius: 8px;
-      color: var(--navy);
-      font-weight: 600;
-      font-size: 14px;
-      transition: all 0.15s;
-    }
-    .btn-outline:hover { background: var(--navy); color: #fff; }
-    .btn-filled {
-      display: block;
-      width: 100%;
-      text-align: center;
-      padding: 11px;
-      background: var(--navy);
-      border-radius: 8px;
-      color: #fff;
-      font-weight: 600;
-      font-size: 14px;
-      transition: background 0.15s;
-    }
-    .btn-filled:hover { background: var(--navy-dark); }
-
-    /* CTA BANNER */
-    .cta-banner {
-      background: var(--navy);
-      padding: 80px 48px;
-      text-align: center;
-    }
-
-    .cta-banner h2 { font-size: clamp(26px, 3.5vw, 38px); font-weight: 800; color: #fff; margin-bottom: 16px; }
-    .cta-banner p { font-size: 17px; color: rgba(255,255,255,0.75); margin-bottom: 36px; }
-
-    .cta-banner .btn-white {
-      background: #fff;
-      color: var(--navy);
-      padding: 14px 36px;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 700;
-      display: inline-block;
-      transition: transform 0.15s;
-    }
-    .cta-banner .btn-white:hover { transform: translateY(-1px); }
-
-    /* FOOTER */
-    footer {
-      padding: 32px 48px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 13px;
-      color: var(--muted);
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    @media (max-width: 768px) {
-      nav { padding: 16px 20px; }
-      .nav-links { display: none; }
-      .hero { padding: 60px 20px 48px; }
-      .proof-bar { padding: 20px; gap: 32px; }
-      .section { padding: 60px 20px; }
-      .compare, .steps, .pricing-grid { grid-template-columns: 1fr; }
-      footer { padding: 24px 20px; flex-direction: column; text-align: center; }
+    /* Divider */
+    .section-divider {
+      height: 4px;
+      width: 60px;
+      background: linear-gradient(90deg, #1F4E79, #C9A84C);
+      border-radius: 2px;
     }
   </style>
 </head>
-<body>
+<body class="bg-white">
 
-  <!-- NAV -->
-  <nav>
-    <div class="nav-logo">
-      <div class="nav-logo-icon">⚖️</div>
-      <span>ChronoLegal AI</span>
-    </div>
-    <div class="nav-links">
-      <a href="#how-it-works">How it works</a>
-      <a href="#pricing">Pricing</a>
-      <a href="mailto:hello@echoaistudio.xyz">Contact</a>
-      <a href="/tool" class="nav-cta">Try it free →</a>
+  <!-- ═══════════════════════════════════════════════════════════
+       NAVBAR
+       ═══════════════════════════════════════════════════════════ -->
+  <nav class="navbar fixed top-0 left-0 right-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <a href="/" class="flex items-center gap-2.5 no-underline">
+          <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center font-bold text-white text-sm">CL</div>
+          <span class="navbar-brand">
+            ChronoLegal<span> AI</span>
+          </span>
+          <span class="hidden sm:inline-block text-[10px] font-semibold text-white/60 tracking-widest uppercase ml-1 mt-0.5">SA Edition</span>
+        </a>
+
+        <!-- Nav Links -->
+        <div class="flex items-center gap-4 sm:gap-6">
+          <a href="#features" class="text-sm font-medium text-white/80 hover:text-white transition-colors hidden sm:block">Features</a>
+          <a href="#how-it-works" class="text-sm font-medium text-white/80 hover:text-white transition-colors hidden sm:block">How It Works</a>
+          <a href="/static/tool.html" class="btn-secondary !text-white !border-white/40 !text-sm !py-2 !px-5 hover:!bg-white/10">
+            Launch App →
+          </a>
+        </div>
+      </div>
     </div>
   </nav>
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-badge">⚡ Built for Personal Injury Law Firms</div>
-    <h1>Medical chronologies in <span>seconds</span>, not days</h1>
-    <p>Upload your medical records. ChronoLegal AI extracts every key event into a colour-coded, hyperlinked timeline — ready for litigation.</p>
-    <div class="hero-actions">
-      <a href="/tool" class="btn-primary">Generate your first chronology →</a>
-      <a href="#how-it-works" class="btn-secondary">See how it works</a>
-    </div>
-  </section>
+  <!-- ═══════════════════════════════════════════════════════════
+       HERO SECTION
+       ═══════════════════════════════════════════════════════════ -->
+  <section class="hero-gradient relative pt-24 pb-20 sm:pt-32 sm:pb-28 overflow-hidden">
+    <div class="hero-glow absolute inset-0 pointer-events-none"></div>
 
-  <!-- PROOF BAR -->
-  <div class="proof-bar">
-    <div class="proof-item">
-      <div class="proof-number">8–16 hrs</div>
-      <div class="proof-label">saved per case</div>
-    </div>
-    <div class="proof-item">
-      <div class="proof-number">&lt;90 sec</div>
-      <div class="proof-label">processing time</div>
-    </div>
-    <div class="proof-item">
-      <div class="proof-number">$400–$800</div>
-      <div class="proof-label">typical paralegal cost per chronology</div>
-    </div>
-    <div class="proof-item">
-      <div class="proof-number">100%</div>
-      <div class="proof-label">sourced — every event linked to a page</div>
-    </div>
-  </div>
+    <!-- Subtle pattern overlay -->
+    <div class="absolute inset-0 opacity-[0.03]" style="background-image: url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M30 0l30 30H0z\' fill=\'white\'/%3E%3C/svg%3E'); background-size: 40px 40px;"></div>
 
-  <!-- PAIN / SOLUTION -->
-  <section class="section">
-    <div class="section-label">The Problem</div>
-    <h2>Manual chronologies are killing your team's time</h2>
-    <p>Personal injury cases involve hundreds — sometimes thousands — of pages of medical records. Building a chronology manually is slow, expensive, and prone to error.</p>
-
-    <div class="compare">
-      <div class="compare-box before">
-        <h3>❌ Without ChronoLegal AI</h3>
-        <ul>
-          <li><span>⏱</span><span>Paralegals spend 8–16 hours per case reading through records</span></li>
-          <li><span>💸</span><span>$400–$800 in paralegal time per chronology</span></li>
-          <li><span>🔍</span><span>Easy to miss critical events buried in dense records</span></li>
-          <li><span>📋</span><span>Inconsistent formatting across cases and staff</span></li>
-          <li><span>🔄</span><span>Redone when new records arrive</span></li>
-        </ul>
-      </div>
-      <div class="compare-box after">
-        <h3>✅ With ChronoLegal AI</h3>
-        <ul>
-          <li><span>⚡</span><span>Complete chronology in under 90 seconds</span></li>
-          <li><span>💰</span><span>Fraction of the cost — pay per report or monthly flat fee</span></li>
-          <li><span>🎯</span><span>Every significant event extracted with significance ratings</span></li>
-          <li><span>📊</span><span>Consistent, professional Excel or Word output every time</span></li>
-          <li><span>➕</span><span>Add new records and regenerate instantly</span></li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- HOW IT WORKS -->
-  <section class="how-bg" id="how-it-works">
-    <div class="section">
-      <div class="section-label">How It Works</div>
-      <h2>Three steps to a complete chronology</h2>
-
-      <div class="steps">
-        <div class="step">
-          <div class="step-num">1</div>
-          <h3>Upload your records</h3>
-          <p>Drag and drop one or more medical record PDFs — ER reports, treatment notes, imaging results, specialist letters. Any text-based PDF works.</p>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div class="max-w-3xl">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6 border border-white/15">
+          <span class="w-2 h-2 rounded-full bg-[#C9A84C]"></span>
+          <span class="text-xs font-semibold text-white/90 tracking-wide">AI-POWERED MEDICO-LEGAL ANALYSIS</span>
         </div>
-        <div class="step">
-          <div class="step-num">2</div>
-          <h3>AI extracts the timeline</h3>
-          <p>Our system reads every page, identifies medically significant events, and classifies them by type, date, provider, and litigation significance.</p>
+
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-6">
+          Find discrepancies in
+          <span class="text-[#C9A84C]">minutes</span>,
+          not days.
+        </h1>
+
+        <p class="text-lg sm:text-xl text-white/75 leading-relaxed mb-8 max-w-2xl">
+          ChronoLegal AI automatically compares hospital records against expert reports,
+          identifies contradictions, flags risk levels, and surfaces strategic alerts —
+          so you can focus on building your case, not cross-referencing PDFs.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="/static/tool.html"
+             class="inline-flex items-center justify-center gap-2 bg-[#C9A84C] hover:bg-[#DFC87A] text-[#153A5C] font-bold px-8 py-3.5 rounded-lg transition-all shadow-lg hover:shadow-xl text-base">
+            Start Your First Analysis
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5-5 5M6 7l5 5-5 5"/></svg>
+          </a>
+          <a href="#how-it-works"
+             class="inline-flex items-center justify-center gap-2 border-2 border-white/30 text-white font-semibold px-8 py-3.5 rounded-lg hover:bg-white/10 transition-all text-base">
+            See How It Works
+          </a>
         </div>
-        <div class="step">
-          <div class="step-num">3</div>
-          <h3>Download &amp; use</h3>
-          <p>Receive a colour-coded Excel or Word chronology with event dates, types, providers, descriptions, and page references — ready to attach to your case file.</p>
+
+        <!-- Trust indicators -->
+        <div class="flex flex-wrap items-center gap-6 mt-10 pt-10 border-t border-white/10">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#C9A84C]" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <span class="text-sm text-white/60">HPCSA-compliant</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#C9A84C]" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <span class="text-sm text-white/60">UFCMA aligned</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#C9A84C]" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <span class="text-sm text-white/60">POPIA secure</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#C9A84C]" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <span class="text-sm text-white/60">Built for SA law</span>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- OUTPUT PREVIEW -->
-      <div class="output-preview">
-        <div class="output-preview-header">
-          <span>📊</span>
-          <span>chronology_Smith_v_Allied_Insurance.xlsx</span>
+    <!-- Decorative element: abstract timeline curve -->
+    <div class="absolute bottom-0 right-0 w-[500px] h-[400px] opacity-10 pointer-events-none hidden lg:block">
+      <svg viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M50 350 Q150 50 250 200 Q350 350 450 100" stroke="white" stroke-width="2" stroke-dasharray="8 8"/>
+        <circle cx="50" cy="350" r="6" fill="#C9A84C"/>
+        <circle cx="250" cy="200" r="6" fill="#C9A84C"/>
+        <circle cx="450" cy="100" r="6" fill="#C9A84C"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FEATURES SECTION
+       ═══════════════════════════════════════════════════════════ -->
+  <section id="features" class="py-20 sm:py-28 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Section Header -->
+      <div class="text-center mb-16">
+        <div class="section-divider mx-auto mb-6"></div>
+        <h2 class="text-3xl sm:text-4xl font-bold text-[#1E293B] mb-4">
+          Why leading firms trust ChronoLegal
+        </h2>
+        <p class="text-lg text-[#64748B] max-w-2xl mx-auto">
+          Purpose-built for South African RAF and personal injury matters. Every feature designed with the attorney's workflow in mind.
+        </p>
+      </div>
+
+      <!-- Feature Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow group">
+          <div class="feature-icon-circle bg-[#F0F6FB] text-[#1F4E79] mb-4 group-hover:bg-[#1F4E79] group-hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 5h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Side-by-Side Matrix</h3>
+          <p class="text-[#64748B] text-sm leading-relaxed">
+            Compare hospital records against two expert reports in a unified timeline.
+            Every event, every note, every contradiction — visible at a glance.
+          </p>
         </div>
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th>#</th><th>Date</th><th>Event Type</th><th>Provider</th><th>Description</th><th>Significance</th><th>Page</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>1</td>
-              <td>2023-06-15</td>
-              <td>Visit</td>
-              <td>Dr. S. Okafor, Metro General Hospital</td>
-              <td>Patient presented via ambulance following rear-end MVA. Cervical and lumbar tenderness noted. GCS 15.</td>
-              <td><span class="badge critical">Critical</span></td>
-              <td>1</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>2023-06-27</td>
-              <td>Imaging</td>
-              <td>Dr. P. Nair, Houston Imaging Center</td>
-              <td>MRI confirms disc herniation at C5-C6 with neural foraminal narrowing and L4-L5 annular tear.</td>
-              <td><span class="badge critical">Critical</span></td>
-              <td>2</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>2023-08-18</td>
-              <td>Procedure</td>
-              <td>Dr. M. Webb, Texas Spine &amp; Orthopedic</td>
-              <td>Lumbar epidural steroid injection at L4-L5 under fluoroscopic guidance. Procedure uncomplicated.</td>
-              <td><span class="badge high">High</span></td>
-              <td>4</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>2024-02-28</td>
-              <td>Other</td>
-              <td>Dr. M. Webb, Texas Spine &amp; Orthopedic</td>
-              <td>Maximum medical improvement reached. 8% whole person impairment. Permanent lifting restriction of 20 lbs.</td>
-              <td><span class="badge critical">Critical</span></td>
-              <td>5</td>
-            </tr>
-          </tbody>
-        </table>
+
+        <!-- Feature 2 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow group">
+          <div class="feature-icon-circle bg-[#FDF8ED] text-[#C9A84C] mb-4 group-hover:bg-[#C9A84C] group-hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Risk-Level Classification</h3>
+          <p class="text-[#64748B] text-sm leading-relaxed">
+            Every discrepancy is automatically scored as Low, Medium, or High risk.
+            Red badges pulse for critical items — never miss a quantum-threatening gap.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow group">
+          <div class="feature-icon-circle bg-[#F5F3FF] text-[#7C3AED] mb-4 group-hover:bg-[#7C3AED] group-hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Strategic Alert Callouts</h3>
+          <p class="text-[#64748B] text-sm leading-relaxed">
+            AI-generated alerts highlight the legal implications of each discrepancy.
+            Know immediately which gaps affect quantum, causation, or apportionment.
+          </p>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow group">
+          <div class="feature-icon-circle bg-[#F0FDF4] text-[#16A34A] mb-4 group-hover:bg-[#16A34A] group-hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Drag &amp; Drop Upload</h3>
+          <p class="text-[#64748B] text-sm leading-relaxed">
+            Upload three PDFs — hospital record, Expert A, Expert B — in seconds.
+            No complex configuration. Just drop your files and click analyze.
+          </p>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow group">
+          <div class="feature-icon-circle bg-[#FFF7ED] text-[#F97316] mb-4 group-hover:bg-[#F97316] group-hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Summary Statistics</h3>
+          <p class="text-[#64748B] text-sm leading-relaxed">
+            At-a-glance dashboard shows total events, risk breakdown, and expert agreement rate.
+            Perfect for case strategy meetings and settlement conferences.
+          </p>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="card p-6 hover:shadow-lg transition-shadow group">
+          <div class="feature-icon-circle bg-[#FEF2F2] text-[#DC2626] mb-4 group-hover:bg-[#DC2626] group-hover:text-white transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Export-Ready Reports</h3>
+          <p class="text-[#64748B] text-sm leading-relaxed">
+            Generate PDF summaries of the discrepancy matrix for briefs, joint minutes,
+            and settlement proposals. Ready for Rule 37 conferences.
+          </p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- PRICING -->
-  <section class="section" id="pricing">
-    <div class="section-label">Pricing</div>
-    <h2>Simple, transparent pricing</h2>
-    <p>No subscriptions required to get started. Pay per report or choose a monthly plan if you have regular volume.</p>
-
-    <div class="pricing-grid">
-      <div class="pricing-card">
-        <h3>Pay As You Go</h3>
-        <div class="price">$99 <span>/ report</span></div>
-        <div class="price-desc">Ideal for occasional cases</div>
-        <ul>
-          <li>Up to 200 pages per report</li>
-          <li>Excel + Word output</li>
-          <li>Multiple PDF upload</li>
-          <li>Delivered in under 2 minutes</li>
-          <li>Email support</li>
-        </ul>
-        <a href="mailto:hello@echoaistudio.xyz?subject=ChronoLegal AI — Pay As You Go" class="btn-outline">Get started</a>
+  <!-- ═══════════════════════════════════════════════════════════
+       HOW IT WORKS
+       ═══════════════════════════════════════════════════════════ -->
+  <section id="how-it-works" class="py-20 sm:py-28 bg-[#F8FAFC]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <div class="section-divider mx-auto mb-6"></div>
+        <h2 class="text-3xl sm:text-4xl font-bold text-[#1E293B] mb-4">
+          Three steps to clarity
+        </h2>
+        <p class="text-lg text-[#64748B] max-w-2xl mx-auto">
+          From PDF upload to discrepancy matrix in under 5 minutes.
+        </p>
       </div>
 
-      <div class="pricing-card featured">
-        <div class="pricing-badge">Most Popular</div>
-        <h3>Firm Monthly</h3>
-        <div class="price">$499 <span>/ mo</span></div>
-        <div class="price-desc">Up to 20 reports per month</div>
-        <ul>
-          <li>Unlimited pages per report</li>
-          <li>Excel + Word output</li>
-          <li>Multiple PDF upload</li>
-          <li>Priority processing</li>
-          <li>Dedicated support</li>
-          <li>Cancel anytime</li>
-        </ul>
-        <a href="mailto:hello@echoaistudio.xyz?subject=ChronoLegal AI — Firm Monthly Plan" class="btn-filled">Get started</a>
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+        <!-- Connector line (desktop) -->
+        <div class="hidden md:block absolute top-12 left-[calc(16.67%+40px)] right-[calc(16.67%+40px)] h-0.5 bg-[#E2E8F0]"></div>
 
-      <div class="pricing-card">
-        <h3>Enterprise</h3>
-        <div class="price">Custom</div>
-        <div class="price-desc">For high-volume firms &amp; legal departments</div>
-        <ul>
-          <li>Unlimited reports</li>
-          <li>API access</li>
-          <li>Custom output templates</li>
-          <li>Case management integration</li>
-          <li>SLA &amp; dedicated account manager</li>
-        </ul>
-        <a href="mailto:hello@echoaistudio.xyz?subject=ChronoLegal AI — Enterprise" class="btn-outline">Contact us</a>
+        <!-- Step 1 -->
+        <div class="relative text-center">
+          <div class="w-24 h-24 rounded-2xl bg-[#1F4E79] text-white flex items-center justify-center mx-auto mb-6 shadow-lg relative z-10">
+            <span class="text-3xl font-bold">1</span>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Upload Your PDFs</h3>
+          <p class="text-sm text-[#64748B] leading-relaxed">
+            Drop your hospital record and two expert reports into the labeled slots.
+            We accept any PDF from South African hospitals and medico-legal experts.
+          </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="relative text-center">
+          <div class="w-24 h-24 rounded-2xl bg-[#C9A84C] text-[#153A5C] flex items-center justify-center mx-auto mb-6 shadow-lg relative z-10">
+            <span class="text-3xl font-bold">2</span>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">AI Processes &amp; Compares</h3>
+          <p class="text-sm text-[#64748B] leading-relaxed">
+            Our AI engine extracts timeline events, cross-references all three documents,
+            identifies discrepancies, and scores risk levels — automatically.
+          </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="relative text-center">
+          <div class="w-24 h-24 rounded-2xl bg-[#16A34A] text-white flex items-center justify-center mx-auto mb-6 shadow-lg relative z-10">
+            <span class="text-3xl font-bold">3</span>
+          </div>
+          <h3 class="text-lg font-semibold text-[#1E293B] mb-2">Review &amp; Act</h3>
+          <p class="text-sm text-[#64748B] leading-relaxed">
+            Explore the interactive discrepancy matrix. Filter by risk level. Read strategic
+            alerts. Export the report for your brief or joint minute.
+          </p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA BANNER -->
-  <section class="cta-banner">
-    <h2>Generate your first chronology free</h2>
-    <p>No credit card required. Upload a PDF and see the output in under 90 seconds.</p>
-    <a href="/tool" class="btn-white">Try ChronoLegal AI →</a>
+  <!-- ═══════════════════════════════════════════════════════════
+       CTA SECTION
+       ═══════════════════════════════════════════════════════════ -->
+  <section class="py-20 bg-white">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h2 class="text-3xl sm:text-4xl font-bold text-[#1E293B] mb-4">
+        Ready to transform your case review?
+      </h2>
+      <p class="text-lg text-[#64748B] mb-8 max-w-xl mx-auto">
+        Join the growing number of South African attorneys who rely on ChronoLegal AI
+        to find discrepancies faster and build stronger cases.
+      </p>
+      <a href="/static/tool.html"
+         class="btn-primary text-lg px-10 py-4 no-underline">
+        Launch ChronoLegal AI
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5-5 5"/></svg>
+      </a>
+    </div>
   </section>
 
-  <!-- FOOTER -->
-  <footer>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span>⚖️</span>
-      <span style="font-weight:700;color:#1e293b;">ChronoLegal AI</span>
-      <span>by EchoAI Studio</span>
+  <!-- ═══════════════════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════════════════ -->
+  <footer class="bg-[#153A5C] text-white/60 py-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-white/10 flex items-center justify-center font-bold text-white text-xs">CL</div>
+          <span class="text-sm font-medium text-white/80">ChronoLegal AI — SA Edition</span>
+        </div>
+        <p class="text-xs">
+          &copy; 2024 ChronoLegal AI. Built for South African medico-legal professionals.
+        </p>
+      </div>
     </div>
-    <div>
-      <a href="mailto:hello@echoaistudio.xyz" style="color:#64748b;">hello@echoaistudio.xyz</a>
-    </div>
-    <div>© 2026 EchoAI Studio. All rights reserved.</div>
   </footer>
 
 </body>
