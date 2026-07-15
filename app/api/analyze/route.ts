@@ -10,17 +10,24 @@ export async function POST(req: NextRequest) {
     const claimant = formData.get("claimant") as string;
     const accidentDate = formData.get("accidentDate") as string;
 
-    const hospitalFile = formData.get("hospitalRecord") as File | null;
-    const expertAFile = formData.get("expertReportA") as File | null;
-    const expertBFile = formData.get("expertReportB") as File | null;
+    const hospitalFile = formData.get("hospitalRecord");
+    const expertAFile = formData.get("expertReportA");
+    const expertBFile = formData.get("expertReportB");
 
     if (!hospitalFile || !expertAFile || !expertBFile) {
       return NextResponse.json({ error: "Missing required files. All three records needed." }, { status: 400 });
     }
 
-    const hospitalText = await hospitalFile.text();
-    const expertAText = await expertAFile.text();
-    const expertBText = await expertBFile.text();
+    // Use arrayBuffer for cross-runtime file reading
+    const readFile = async (file: any): Promise<string> => {
+      if (typeof file.text === 'function') return await file.text();
+      const buffer = Buffer.from(await file.arrayBuffer());
+      return buffer.toString('utf-8');
+    };
+
+    const hospitalText = await readFile(hospitalFile);
+    const expertAText = await readFile(expertAFile);
+    const expertBText = await readFile(expertBFile);
 
     const systemInstruction = `You are an elite South African Medico-Legal Advocate and Quantum Litigation Strategist. 
 Analyze the provided clinical records for Claimant ${claimant} (Case Ref: ${caseRef}, MVA Date: ${accidentDate}).
@@ -74,7 +81,6 @@ ${expertBText}`;
     if (!response.ok) return NextResponse.json({ error: `AI engine error: ${data.error?.message || response.status}` }, { status: 502 });
 
     const content = data.choices?.[0]?.message?.content || "[]";
-    // DeepSeek sometimes wraps JSON in markdown
     const cleaned = content.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
     const parsed = JSON.parse(cleaned);
 
