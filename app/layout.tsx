@@ -2,14 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ChronoLegal AI — SA Medico-Legal Chronology",
-  description: "AI-powered comparative analysis for RAF and personal injury plaintiff attorneys. Find contradictions in medical records before trial.",
+  title: "ChronoLegal SA — Find Contradictions Before Opposing Counsel Does",
+  description: "AI medico-legal chronology for SA RAF and personal injury attorneys. Flag GCS contradictions, expert report discrepancies, and treatment gaps in minutes.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body className="antialiased">{children}</body>
-    </html>
-  );
+  return (<html lang="en"><body className="antialiased">{children}</body></html>);
 }
