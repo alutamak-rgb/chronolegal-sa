@@ -1,0 +1,184 @@
+"use client";
+
+import React, { useState } from "react";
+import { AlertTriangle, ShieldCheck, FileText, Upload, RefreshCw } from "lucide-react";
+
+interface MatrixItem {
+  date: string;
+  event: string;
+  hospitalRecord: string;
+  expertA: string;
+  expertB: string;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  strategicAlert: string;
+}
+
+export default function ChronolegalAnalysisTool() {
+  const [step, setStep] = useState<1 | 2>(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [caseRef, setCaseRef] = useState("");
+  const [attorney, setAttorney] = useState("");
+  const [claimant, setClaimant] = useState("");
+  const [accidentDate, setAccidentDate] = useState("");
+  const [hospitalRecord, setHospitalRecord] = useState<File | null>(null);
+  const [expertReportA, setExpertReportA] = useState<File | null>(null);
+  const [expertReportB, setExpertReportB] = useState<File | null>(null);
+  const [matrixData, setMatrixData] = useState<MatrixItem[]>([]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, slot: string) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      if (slot === "hospital") setHospitalRecord(file);
+      if (slot === "expertA") setExpertReportA(file);
+      if (slot === "expertB") setExpertReportB(file);
+    }
+  };
+
+  const executeLiveAnalysis = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    if (!hospitalRecord || !expertReportA || !expertReportB) {
+      setError("All three document slots are required before analysis.");
+      setLoading(false);
+      return;
+    }
+    const payload = new FormData();
+    payload.append("caseRef", caseRef);
+    payload.append("attorney", attorney);
+    payload.append("claimant", claimant);
+    payload.append("accidentDate", accidentDate);
+    payload.append("hospitalRecord", hospitalRecord);
+    payload.append("expertReportA", expertReportA);
+    payload.append("expertReportB", expertReportB);
+    try {
+      const response = await fetch("/api/analyze", { method: "POST", body: payload });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Server processing failed.");
+      setMatrixData(result.data);
+      setStep(2);
+    } catch (err: any) {
+      setError(err.message || "An unexpected processing fault occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      <header className="bg-slate-950 text-white px-8 py-4 flex justify-between items-center shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="bg-amber-500 font-bold px-2.5 py-1 rounded text-slate-950 text-sm">CL</div>
+          <h1 className="text-xl font-bold tracking-tight">ChronoLegal <span className="text-amber-400">AI</span></h1>
+        </div>
+        <span className="text-xs text-slate-400 font-mono">POPIA Compliant · DeepSeek-Powered</span>
+      </header>
+
+      <main className="max-w-7xl mx-auto p-8">
+        <div className="flex items-center justify-center gap-12 mb-10 text-sm font-semibold text-slate-400">
+          <div className={`flex items-center gap-2 pb-2 border-b-2 ${step===1?"text-slate-900 border-amber-500":"text-amber-600 border-transparent"}`}><span>1. Capture Bundle Data</span></div>
+          <div className={`flex items-center gap-2 pb-2 border-b-2 ${step===2?"text-slate-900 border-amber-500":"border-transparent"}`}><span>2. Cross-Comparative Review Matrix</span></div>
+        </div>
+
+        {error && (<div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 flex items-center gap-3 text-sm"><AlertTriangle className="h-5 w-5 shrink-0"/><p>{error}</p></div>)}
+
+        {step === 1 && (
+          <form onSubmit={executeLiveAnalysis} className="space-y-8 bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-800 border-b pb-3">Discrepancy Analysis Input</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div><label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Case Reference / RAF Number *</label><input required type="text" value={caseRef} onChange={e=>setCaseRef(e.target.value)} placeholder="e.g. RAF/2024/008921" className="w-full px-4 py-2.5 border rounded-xl focus:outline-amber-500 text-sm bg-slate-50"/></div>
+              <div><label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Instructing Attorney *</label><input required type="text" value={attorney} onChange={e=>setAttorney(e.target.value)} placeholder="Your Full Name" className="w-full px-4 py-2.5 border rounded-xl focus:outline-amber-500 text-sm bg-slate-50"/></div>
+              <div><label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Claimant / Plaintiff *</label><input required type="text" value={claimant} onChange={e=>setClaimant(e.target.value)} placeholder="Sipho Ndlovu" className="w-full px-4 py-2.5 border rounded-xl focus:outline-amber-500 text-sm bg-slate-50"/></div>
+              <div><label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Date of Accident *</label><input required type="date" value={accidentDate} onChange={e=>setAccidentDate(e.target.value)} className="w-full px-4 py-2.5 border rounded-xl focus:outline-amber-500 text-sm bg-slate-50"/></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+              {[
+                { key: "hospital", title: "Hospital Record", file: hospitalRecord, subtitle: "Initial admission sheets & trauma charts" },
+                { key: "expertA", title: "Expert Report A", file: expertReportA, subtitle: "e.g. Neurosurgeon or Orthopaedic report" },
+                { key: "expertB", title: "Expert Report B", file: expertReportB, subtitle: "e.g. Occupational/Industrial Psychologist" },
+              ].map(slot => (
+                <div key={slot.key} className={`border-2 border-dashed rounded-2xl p-6 text-center flex flex-col items-center justify-center transition-all ${slot.file?"border-emerald-500 bg-emerald-50/30":"border-slate-200 hover:border-amber-400 bg-slate-50/50"}`}>
+                  {slot.file ? <FileText className="h-10 w-10 text-emerald-600 mb-3"/> : <Upload className="h-10 w-10 text-slate-400 mb-3"/>}
+                  <h3 className="text-sm font-bold text-slate-700">{slot.title}</h3>
+                  <p className="text-xs text-slate-400 px-2 mt-1 mb-4">{slot.subtitle}</p>
+                  <label className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all ${slot.file?"bg-emerald-600 text-white":"bg-white border text-slate-700 hover:bg-slate-100"}`}>
+                    {slot.file ? "File Loaded ✓" : "Choose File"}
+                    <input type="file" accept=".txt,.pdf" onChange={e=>handleFileUpload(e,slot.key)} className="hidden"/>
+                  </label>
+                  {slot.file && <span className="text-[10px] text-slate-500 mt-2 truncate max-w-xs">{slot.file.name}</span>}
+                </div>
+              ))}
+            </div>
+            <div className="pt-6 border-t flex justify-end">
+              <button type="submit" disabled={loading} className="bg-slate-950 text-white font-bold px-8 py-3 rounded-xl flex items-center gap-3 shadow hover:bg-slate-900 transition-all disabled:opacity-50">
+                {loading ? <><RefreshCw className="h-5 w-5 animate-spin text-amber-400"/>Analysing Trial Bundle...</> : "Execute Discrepancy Engine"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-6">
+            <div className="bg-white border p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <span className="text-xs font-mono px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full font-bold">LIVE INTELLIGENCE MATRIX</span>
+                <h2 className="text-xl font-extrabold text-slate-800 mt-2">Matter Profile: {claimant||"Claimant"}</h2>
+                <p className="text-xs text-slate-400 mt-1 font-mono">Reference: {caseRef} · Accident Date: {accidentDate}</p>
+              </div>
+              <button onClick={()=>setStep(1)} className="border font-bold text-xs px-4 py-2.5 rounded-xl bg-white text-slate-700 hover:bg-slate-50 transition-all">← Process New Bundle</button>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead className="bg-slate-950 text-white font-mono uppercase text-xs tracking-wider">
+                    <tr>
+                      <th className="p-4 border-b w-28">Date</th>
+                      <th className="p-4 border-b w-40">Event</th>
+                      <th className="p-4 border-b">Hospital Baseline</th>
+                      <th className="p-4 border-b">Expert Report A</th>
+                      <th className="p-4 border-b">Expert Report B</th>
+                      <th className="p-4 border-b w-28">Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {matrixData.map((item, index) => {
+                      const isHigh = item.riskLevel === "HIGH";
+                      const isMed = item.riskLevel === "MEDIUM";
+                      return (
+                        <React.Fragment key={index}>
+                          <tr className={`transition-all ${isHigh?"bg-red-50/40":isMed?"bg-amber-50/30":"hover:bg-slate-50"}`}>
+                            <td className="p-4 font-mono font-bold text-slate-600 align-top">{item.date}</td>
+                            <td className="p-4 font-bold text-slate-800 align-top">{item.event}</td>
+                            <td className="p-4 text-slate-600 text-xs leading-relaxed align-top">{item.hospitalRecord||"—"}</td>
+                            <td className="p-4 text-slate-600 text-xs leading-relaxed align-top">{item.expertA||"—"}</td>
+                            <td className="p-4 text-slate-600 text-xs leading-relaxed align-top">{item.expertB||"—"}</td>
+                            <td className="p-4 align-top">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold tracking-wide rounded-full ${isHigh?"bg-red-100 text-red-800":isMed?"bg-amber-100 text-amber-800":"bg-emerald-100 text-emerald-800"}`}>
+                                {isHigh && <AlertTriangle className="h-3 w-3"/>}{item.riskLevel}
+                              </span>
+                            </td>
+                          </tr>
+                          {(isHigh||isMed) && (
+                            <tr className={isHigh?"bg-red-50/40":"bg-amber-50/30"}>
+                              <td colSpan={6} className="px-4 pb-4 pt-0">
+                                <div className={`p-4 rounded-xl text-xs flex items-start gap-3 border ${isHigh?"border-red-200 bg-white text-red-900":"border-amber-200 bg-white text-amber-900"}`}>
+                                  <ShieldCheck className={`h-4 w-4 shrink-0 mt-0.5 ${isHigh?"text-red-600":"text-amber-600"}`}/>
+                                  <div><span className="font-extrabold uppercase font-mono text-[10px] block mb-1">Defense Vulnerability Warning:</span>{item.strategicAlert}</div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
