@@ -20,13 +20,13 @@ export async function POST(req: NextRequest) {
           new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "IN THE HIGH COURT OF SOUTH AFRICA", bold: true, size: 24, font: "Arial" })] }),
           new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: `(${metadata.division.toUpperCase()})`, bold: true, size: 20, font: "Arial" })] }),
           new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 300 }, children: [new TextRun({ text: "CASE NO: ", bold: true, size: 22 }), new TextRun({ text: metadata.caseNumber, bold: true, size: 22 })] }),
-          new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "In the matter between:\n", size: 18, italic: true })] }),
-          new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: metadata.plaintiff.toUpperCase(), bold: true, size: 22 }), new TextRun({ text: "  (Plaintiff)", italic: true, size: 18 })] }),
-          new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "and\n", size: 18, italic: true })] }),
-          new Paragraph({ spacing: { after: 400 }, children: [new TextRun({ text: metadata.defendant.toUpperCase(), bold: true, size: 22 }), new TextRun({ text: "  (Defendant)", italic: true, size: 18 })] }),
+          new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "In the matter between:\n", size: 18, italics: true })] }),
+          new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: metadata.plaintiff.toUpperCase(), bold: true, size: 22 }), new TextRun({ text: "  (Plaintiff)", italics: true, size: 18 })] }),
+          new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text: "and\n", size: 18, italics: true })] }),
+          new Paragraph({ spacing: { after: 400 }, children: [new TextRun({ text: metadata.defendant.toUpperCase(), bold: true, size: 22 }), new TextRun({ text: "  (Defendant)", italics: true, size: 18 })] }),
           new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 400 }, children: [new TextRun({ text: "_____________________________________________________________" })] }),
           new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 400 }, children: [new TextRun({ text: "PLAINTIFF'S INDEX & PAGINATION SCHEDULE", bold: true, size: 26 })] }),
-          new Paragraph({ spacing: { after: 300 }, children: [new TextRun({ text: "Prepared in compliance with DJP Practice Directives for electronic bundles. Document entries structured with CaseLines prefix-pagination — no leading chronological date signatures.", italic: true, size: 16 })] }),
+          new Paragraph({ spacing: { after: 300 }, children: [new TextRun({ text: "Prepared in compliance with DJP Practice Directives for electronic bundles. Document entries structured with CaseLines prefix-pagination — no leading chronological date signatures.", italics: true, size: 16 })] }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             rows: [
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
             ],
           }),
           new Paragraph({ spacing: { before: 800 }, children: [new TextRun({ text: "DATED AT ", bold: true, size: 18 }), new TextRun({ text: "____________________", size: 18 }), new TextRun({ text: " ON THIS ", bold: true, size: 18 }), new TextRun({ text: "_____", size: 18 }), new TextRun({ text: " DAY OF ", bold: true, size: 18 }), new TextRun({ text: "__________________ 2026.", size: 18 })] }),
-          new Paragraph({ spacing: { before: 600 }, children: [new TextRun({ text: "____________________________________\n", bold: true }), new TextRun({ text: "PLAINTIFF'S ATTORNEYS\n", bold: true, size: 18 }), new TextRun({ text: "ECHOAI STUDIO\n", size: 18 }), new TextRun({ text: "Pretoria, South Africa\n", size: 16 }), new TextRun({ text: "Email: litigation@echoaistudio.xyz", size: 16, italic: true })] }),
+          new Paragraph({ spacing: { before: 600 }, children: [new TextRun({ text: "____________________________________\n", bold: true }), new TextRun({ text: "PLAINTIFF'S ATTORNEYS\n", bold: true, size: 18 }), new TextRun({ text: "ECHOAI STUDIO\n", size: 18 }), new TextRun({ text: "Pretoria, South Africa\n", size: 16 }), new TextRun({ text: "Email: litigation@echoaistudio.xyz", italics: true, size: 16 })] }),
         ],
       }],
     });
