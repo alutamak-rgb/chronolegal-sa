@@ -4,6 +4,10 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { getPb } from '@/lib/pocketbase';
 import type { RecordModel } from 'pocketbase';
 
+function getField(m: RecordModel, field: string): any {
+  return (m as any)[field];
+}
+
 interface AuthUser {
   id: string;
   email: string;
@@ -58,11 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       id: m.id,
       email: m.email,
-      name: m.get('name') || '',
-      firmName: m.get('firmName') || '',
-      tokens: m.get('tokens') || 0,
-      subscriptionStatus: m.get('subscriptionStatus') || '',
-      trialEndsAt: m.get('trialEndsAt') || '',
+      name: getField(m, 'name') || '',
+      firmName: getField(m, 'firmName') || '',
+      tokens: getField(m, 'tokens') || 0,
+      subscriptionStatus: getField(m, 'subscriptionStatus') || '',
+      trialEndsAt: getField(m, 'trialEndsAt') || '',
     };
   }
 
