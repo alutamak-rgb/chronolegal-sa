@@ -1,87 +1,53 @@
-import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 
-// /data persists across deploys via Railway Volume mount
 const DATA_DIR = '/data';
-const DB_PATH = path.join(DATA_DIR, 'chronolegal-cases.db');
+const DB_PATH = path.join(DATA_DIR, 'cases.json');
 
-// Ensure /data directory exists
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, '[]');
 
-let db: Database | null = null;
-
-async function getDb(): Promise<Database> {
-  if (db) return db;
-
-  const SQL = await initSqlJs();
-
-  if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
-  }
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS cases (
-      id TEXT PRIMARY KEY,
-      case_ref TEXT NOT NULL,
-      claimant TEXT NOT NULL,
-      attorney TEXT DEFAULT '',
-      accident_date TEXT DEFAULT '',
-      status TEXT DEFAULT 'PROCESSING',
-      matrix_data TEXT DEFAULT '[]',
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-
-  return db;
+function read(): any[] {
+  try { return JSON.parse(fs.readFileSync(DB_PATH, 'utf-8')); } catch { return []; }
 }
 
-function persist() {
-  if (!db) return;
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+function write(rows: any[]) {
+  fs.writeFileSync(DB_PATH, JSON.stringify(rows, null, 2));
 }
 
 export async function getAllCases() {
-  const d = await getDb();
-  const results = d.exec('SELECT * FROM cases ORDER BY created_at DESC');
-  if (!results.length) return [];
-  return results[0].values.map((row: any[]) => ({
-    id: row[0], caseRef: row[1], claimant: row[2], attorney: row[3],
-    accidentDate: row[4], status: row[5], matrixData: row[6],
-    createdAt: row[7], updatedAt: row[8],
-  }));
+  return read().sort((a,b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function getCaseById(id: string) {
-  const d = await getDb();
-  const results = d.exec('SELECT * FROM cases WHERE id = ?', [id]);
-  if (!results.length || !results[0].values.length) return null;
-  const row = results[0].values[0];
-  return { id: row[0], caseRef: row[1], claimant: row[2], attorney: row[3], accidentDate: row[4], status: row[5], matrixData: row[6], createdAt: row[7], updatedAt: row[8] };
+  return read().find(c => c.id === id) || null;
 }
 
 export async function createCase(data: { caseRef: string; claimant: string; attorney?: string; accidentDate?: string; matrixData?: string; status?: string }) {
-  const d = await getDb();
-  const id = `case_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const rows = read();
   const now = new Date().toISOString();
-  d.run(
-    'INSERT INTO cases (id, case_ref, claimant, attorney, accident_date, status, matrix_data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, data.caseRef, data.claimant, data.attorney || '', data.accidentDate || '', data.status || 'COMPLETED', data.matrixData || '[]', now, now]
-  );
-  persist();
-  return { id, caseRef: data.caseRef, claimant: data.claimant, status: data.status || 'COMPLETED', createdAt: now };
+  const entry = {
+    id: `case_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    caseRef: data.caseRef,
+    claimant: data.claimant,
+    attorney: data.attorney || '',
+    accidentDate: data.accidentDate || '',
+    status: data.status || 'COMPLETED',
+    matrixData: data.matrixData || '[]',
+    createdAt: now,
+    updatedAt: now,
+  };
+  rows.push(entry);
+  write(rows);
+  return entry;
 }
 
 export async function updateCase(id: string, data: { status?: string; matrixData?: string }) {
-  const d = await getDb();
-  const now = new Date().toISOString();
-  if (data.status) d.run('UPDATE cases SET status = ?, updated_at = ? WHERE id = ?', [data.status, now, id]);
-  if (data.matrixData) d.run('UPDATE cases SET matrix_data = ?, updated_at = ? WHERE id = ?', [data.matrixData, now, id]);
-  persist();
+  const rows = read();
+  const idx = rows.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  if (data.status) rows[idx].status = data.status;
+  if (data.matrixData) rows[idx].matrixData = data.matrixData;
+  rows[idx].updatedAt = new Date().toISOString();
+  write(rows);
 }
