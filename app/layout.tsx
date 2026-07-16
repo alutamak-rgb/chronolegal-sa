@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "ChronoLegal SA — Find Contradictions Before Opposing Counsel Does",
@@ -7,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (<html lang="en"><body className="antialiased">{children}</body></html>);
+  return (
+    <html lang="en">
+      <body className="antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
+    </html>
+  );
 }

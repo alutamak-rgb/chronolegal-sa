@@ -17,7 +17,9 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-4">
           <Link href="/tool" className="text-xs text-slate-400 hover:text-white transition-colors">Try Demo</Link>
-          <Link href="/tool" className="bg-amber-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-amber-400 transition-all">Launch Tool →</Link>
+          <Link href="/pricing" className="text-xs text-amber-400 hover:text-amber-300 font-bold transition-colors">Pricing</Link>
+          <Link href="/auth/login" className="text-xs text-slate-400 hover:text-white transition-colors">Sign In</Link>
+          <Link href="/auth/register" className="bg-amber-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg hover:bg-amber-400 transition-all">Sign Up</Link>
         </div>
       </header>
 
@@ -47,7 +49,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* RAF Reality Credibility Bar */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-20">
           {[
             { icon: <TrendingDown size={16} className="text-amber-600"/>, title: "RAF Contradictions", desc: "GCS scores, LOC claims, treatment gaps — the patterns the RAF exploits to reduce quantum." },
@@ -63,7 +64,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* How It Works */}
         <div className="text-center mb-16">
           <div className="text-xs font-mono font-bold text-amber-600 uppercase tracking-[0.2em] mb-4">How It Works</div>
           <h2 className="text-3xl font-extrabold text-slate-950 mb-4">Three steps to your chronology</h2>
@@ -84,7 +84,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Testimonial */}
         <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-20 shadow-sm">
           <div className="text-amber-500 text-4xl font-serif mb-4">"</div>
           <p className="text-slate-700 leading-relaxed mb-4 italic">
@@ -99,7 +98,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Bottom CTA */}
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-slate-950 mb-4">Your next RAF1 is probably on your desk right now.</h2>
           <p className="text-slate-600 mb-8">First chronology free. From your second matter onward, less than the cost of 30 minutes of your billable time.</p>

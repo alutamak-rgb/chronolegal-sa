@@ -1,0 +1,85 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import Link from 'next/link';
+
+export default function RegisterPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [firmName, setFirmName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const router = useRouter();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await register(email, password, name, firmName);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 no-underline">
+            <div className="bg-amber-500 font-bold px-2.5 py-1 rounded text-slate-950 text-sm">CL</div>
+            <span className="text-xl font-bold text-slate-950">ChronoLegal <span className="text-amber-500">AI</span></span>
+          </Link>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+          <h1 className="text-2xl font-extrabold text-slate-950 mb-1">Create Account</h1>
+          <p className="text-sm text-slate-500 mb-6">Start your free trial. First chronology on us.</p>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3 mb-4">{error}</div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
+              <input type="text" required value={name} onChange={e => setName(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-amber-500 text-sm" placeholder="Thabo Ndlovu" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Firm Name</label>
+              <input type="text" required value={firmName} onChange={e => setFirmName(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-amber-500 text-sm" placeholder="Ndlovu Inc. Attorneys" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-amber-500 text-sm" placeholder="attorney@firm.co.za" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+              <input type="password" required minLength={8} value={password} onChange={e => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-amber-500 text-sm" placeholder="Min 8 characters" />
+            </div>
+            <button type="submit" disabled={loading}
+              className="w-full bg-amber-500 text-slate-950 font-bold py-3 rounded-xl hover:bg-amber-400 transition-all disabled:opacity-50">
+              {loading ? 'Creating account...' : 'Create Free Account'}
+            </button>
+          </form>
+
+          <p className="text-xs text-slate-400 text-center mt-6">
+            Already have an account?{' '}
+            <Link href="/auth/login" className="text-amber-600 font-bold hover:text-amber-700">Sign in</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
