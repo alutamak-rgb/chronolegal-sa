@@ -1,63 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
+import { getTierByPlanCode, TRIAL_DAYS } from '@/lib/pricing';
 
-const FIRMS_PATH = '/data/firms.json';
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
+const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
 
-function readFirms(): any[] {
-  try { return JSON.parse(fs.readFileSync(FIRMS_PATH, 'utf-8')); } catch { return []; }
+function verifyPaystack(body: string, sig: string): boolean {
+  if (!PAYSTACK_SECRET) return true;
+  const hash = crypto.createHmac('sha512', PAYSTACK_SECRET).update(body).digest('hex');
+  return hash === sig;
 }
 
-function writeFirms(rows: any[]) {
-  fs.writeFileSync(FIRMS_PATH, JSON.stringify(rows, null, 2));
+async function pbAuth() {
+  const res = await fetch(`${PB_URL}/api/admins/auth-with-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identity: 'admin@chronolegal.co.za', password: 'ChronoLegal2026!' }),
+  });
+  const data = await res.json();
+  return data.token;
 }
 
-function verifyYoco(body: string, sig: string, secret: string): boolean {
-  if (!secret) return true; // mock mode
-  return crypto.createHmac('sha256', secret).update(body).digest('hex') === sig;
+async function updateUser(firmId: string, updates: Record<string, any>, token: string) {
+  await fetch(`${PB_URL}/api/collections/users/records/${firmId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(updates),
+  });
+}
+
+async function getUser(firmId: string, token: string) {
+  const res = await fetch(`${PB_URL}/api/collections/users/records/${firmId}`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  return res.json();
 }
 
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    const signature = req.headers.get('yoco-webhook-signature');
-    const secret = process.env.YOCO_WEBHOOK_SECRET || '';
+    const signature = req.headers.get('x-paystack-signature') || '';
 
-    if (!signature || !verifyYoco(rawBody, signature, secret)) {
+    if (!verifyPaystack(rawBody, signature)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     const event = JSON.parse(rawBody);
+    console.log(`📨 [Paystack Webhook]: ${event.event}`);
 
-    if (event.type === 'checkout.paid') {
-      const metadata = event.data.metadata;
+    const adminToken = await pbAuth();
+
+    if (event.event === 'charge.success') {
+      const metadata = event.data.metadata || {};
       const firmId = metadata.firmId;
-      const tokens = parseInt(metadata.allocatedTokens, 10);
+      const type = metadata.type;
 
-      console.log(`🎉 [Payment]: ${tokens} tokens → ${firmId}`);
+      if (!firmId) return NextResponse.json({ received: true });
 
-      // Initialize firms file if needed
-      if (!fs.existsSync(FIRMS_PATH)) fs.writeFileSync(FIRMS_PATH, '[]');
+      if (type === 'subscription') {
+        const planCode = event.data.plan?.plan_code || metadata.plan;
+        const tier = getTierByPlanCode(planCode);
+        const tokens = tier?.casesPerBundle || 5;
+        const customerCode = event.data.customer?.customer_code || '';
+        const subCode = event.data.subscription?.subscription_code || '';
 
-      const firms = readFirms();
-      const idx = firms.findIndex((f: any) => f.id === firmId);
-
-      if (idx === -1) {
-        firms.push({ id: firmId, availableTokens: tokens, updatedAt: new Date().toISOString() });
+        console.log(`🎉 [Subscription]: ${tier?.name || planCode} → ${firmId}, +${tokens} tokens`);
+        await updateUser(firmId, {
+          tokens,
+          subscriptionPlan: planCode,
+          subscriptionStatus: 'active',
+          trialEndsAt: null,
+          paystackCustomerCode: customerCode,
+          paystackSubscriptionCode: subCode,
+        }, adminToken);
       } else {
-        firms[idx].availableTokens = (firms[idx].availableTokens || 0) + tokens;
-        firms[idx].updatedAt = new Date().toISOString();
-      }
+        const allocatedTokens = parseInt(metadata.allocatedTokens || '0', 10);
+        const user = await getUser(firmId, adminToken);
+        const currentTokens = user.tokens || 0;
 
-      writeFirms(firms);
-      return NextResponse.json({ success: true, tokens: tokens });
+        console.log(`🎉 [One-Time]: +${allocatedTokens} tokens → ${firmId}`);
+        await updateUser(firmId, {
+          tokens: currentTokens + allocatedTokens,
+          paystackCustomerCode: event.data.customer?.customer_code || user.paystackCustomerCode || '',
+        }, adminToken);
+      }
+    }
+
+    if (event.event === 'subscription.disable') {
+      const customerCode = event.data.customer?.customer_code;
+      console.log(`⚠️ [Subscription Disabled]: customer ${customerCode}`);
     }
 
     return NextResponse.json({ received: true });
 
   } catch (error: any) {
-    console.error('❌ [Webhook Error]:', error);
+    console.error('❌ [Paystack Webhook Error]:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

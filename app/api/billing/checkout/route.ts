@@ -1,50 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPriceForCaseCount, PRICING_TIERS } from '@/lib/pricing';
 
-/** GET — returns pricing tiers for display */
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
+
 export async function GET() {
   return NextResponse.json({ success: true, currency: 'ZAR', tiers: PRICING_TIERS });
 }
 
-/** POST — create Yoco checkout session */
 export async function POST(req: NextRequest) {
   try {
-    const { firmId, caseCount, callbackUrl } = await req.json();
-    if (!firmId || !caseCount) return NextResponse.json({ error: 'Missing firmId or caseCount.' }, { status: 400 });
+    const { firmId, email, caseCount, tierName, callbackUrl } = await req.json();
+    if (!firmId || !email) return NextResponse.json({ error: 'Missing firmId or email.' }, { status: 400 });
 
-    const pricing = getPriceForCaseCount(caseCount);
-    const tier = pricing.name;
-    const hasExtras = pricing.extraCases > 0;
+    const tier = tierName
+      ? PRICING_TIERS.find(t => t.name === tierName)
+      : null;
 
-    console.log(`💳 [Billing]: Firm ${firmId} — ${caseCount} cases → ${tier} tier — R${pricing.totalPriceZAR}`);
+    if (tier && tier.isSubscription && tier.paystackPlanCode) {
+      const payload: any = {
+        email,
+        plan: tier.paystackPlanCode,
+        metadata: { firmId, tier: tier.name, type: 'subscription' },
+        callback_url: callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard`,
+      };
+      console.log(`💳 [Paystack Subscription]: ${tier.name} for ${email}`);
 
-    const secretKey = process.env.YOCO_SECRET_KEY;
-    if (!secretKey) return NextResponse.json({ error: 'Payment gateway not configured.' }, { status: 500 });
+      const res = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.status) throw new Error(data.message || 'Paystack init failed');
 
-    const description = hasExtras
-      ? `ChronoLegal AI — ${tier} (30 cases) + ${pricing.extraCases} extra. ${caseCount} tokens.`
-      : `ChronoLegal AI — ${tier}: ${caseCount} tokens. R${pricing.effectivePricePerCase}/case.`;
+      return NextResponse.json({ success: true, redirectUrl: data.data.authorization_url, reference: data.data.reference, tier: tier.name, type: 'subscription' });
+    }
 
-    const response = await fetch('https://online.yoco.com/v1/checkouts', {
+    const caseCountNum = caseCount || 1;
+    const pricing = getPriceForCaseCount(caseCountNum);
+    const payload: any = {
+      email,
+      amount: pricing.totalCents,
+      currency: 'ZAR',
+      metadata: { firmId, allocatedTokens: String(caseCountNum), tier: pricing.name, type: 'one_time' },
+      callback_url: callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard`,
+    };
+    console.log(`💳 [Paystack One-Time]: ${caseCountNum} cases, R${pricing.totalPriceZAR}`);
+
+    const res = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${secretKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: pricing.totalCents,
-        currency: 'ZAR',
-        description,
-        metadata: { firmId, allocatedTokens: String(caseCount), tier },
-        successUrl: `${callbackUrl}?status=success&tokens=${caseCount}`,
-        cancelUrl: `${callbackUrl}?status=cancelled`,
-      }),
+      headers: { Authorization: `Bearer ${PAYSTACK_SECRET}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
+    const data = await res.json();
+    if (!data.status) throw new Error(data.message || 'Paystack init failed');
 
-    if (!response.ok) throw new Error(`Yoco rejected: ${await response.text()}`);
-
-    const data = await response.json();
-    return NextResponse.json({ success: true, checkoutId: data.id, redirectUrl: data.redirectUrl, pricing: { tier, caseCount, totalZAR: pricing.totalPriceZAR } });
+    return NextResponse.json({ success: true, redirectUrl: data.data.authorization_url, reference: data.data.reference, tier: pricing.name, caseCount: caseCountNum, totalZAR: pricing.totalPriceZAR, type: 'one_time' });
 
   } catch (error: any) {
-    console.error('❌ [Billing Error]:', error);
+    console.error('❌ [Paystack Error]:', error);
     return NextResponse.json({ error: 'Payment gateway error.', detail: error.message }, { status: 500 });
   }
 }

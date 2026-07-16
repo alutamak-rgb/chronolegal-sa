@@ -10,6 +10,8 @@ interface AuthUser {
   name?: string;
   firmName?: string;
   tokens: number;
+  subscriptionStatus?: string;
+  trialEndsAt?: string;
 }
 
 interface AuthContextType {
@@ -40,56 +42,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const pb = getPb();
     if (pb.authStore.isValid) {
       const m = pb.authStore.model as RecordModel;
-      setUser({
-        id: m.id,
-        email: m.email,
-        name: m.get('name') || '',
-        firmName: m.get('firmName') || '',
-        tokens: m.get('tokens') || 0,
-      });
+      setUser(mapUser(m));
     }
     setLoading(false);
 
     const unsub = pb.authStore.onChange(() => {
       const m = pb.authStore.model as RecordModel | null;
-      if (m) {
-        setUser({
-          id: m.id,
-          email: m.email,
-          name: m.get('name') || '',
-          firmName: m.get('firmName') || '',
-          tokens: m.get('tokens') || 0,
-        });
-      } else {
-        setUser(null);
-      }
+      setUser(m ? mapUser(m) : null);
     });
 
     return () => { unsub(); };
   }, []);
 
-  async function login(email: string, password: string) {
-    const pb = getPb();
-    const result = await pb.collection('users').authWithPassword(email, password);
-    const m = result.record;
-    setUser({
+  function mapUser(m: RecordModel): AuthUser {
+    return {
       id: m.id,
       email: m.email,
       name: m.get('name') || '',
       firmName: m.get('firmName') || '',
       tokens: m.get('tokens') || 0,
-    });
+      subscriptionStatus: m.get('subscriptionStatus') || '',
+      trialEndsAt: m.get('trialEndsAt') || '',
+    };
+  }
+
+  async function login(email: string, password: string) {
+    const pb = getPb();
+    const result = await pb.collection('users').authWithPassword(email, password);
+    setUser(mapUser(result.record));
   }
 
   async function register(email: string, password: string, name: string, firmName: string) {
     const pb = getPb();
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 14);
     await pb.collection('users').create({
       email,
       password,
       passwordConfirm: password,
       name,
       firmName,
-      tokens: 0,
+      tokens: 1,
+      subscriptionStatus: 'trial',
+      trialEndsAt: trialEnd.toISOString(),
     });
     await login(email, password);
   }
