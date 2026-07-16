@@ -2,7 +2,13 @@ import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 
-const DB_PATH = '/tmp/chronolegal-cases.db';
+// /data persists across deploys via Railway Volume mount
+const DATA_DIR = '/data';
+const DB_PATH = path.join(DATA_DIR, 'chronolegal-cases.db');
+
+// Ensure /data directory exists
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
 let db: Database | null = null;
 
 async function getDb(): Promise<Database> {
@@ -10,7 +16,6 @@ async function getDb(): Promise<Database> {
 
   const SQL = await initSqlJs();
 
-  // Try loading existing database file
   if (fs.existsSync(DB_PATH)) {
     const buffer = fs.readFileSync(DB_PATH);
     db = new SQL.Database(buffer);
@@ -18,7 +23,6 @@ async function getDb(): Promise<Database> {
     db = new SQL.Database();
   }
 
-  // Create tables if needed
   db.run(`
     CREATE TABLE IF NOT EXISTS cases (
       id TEXT PRIMARY KEY,
