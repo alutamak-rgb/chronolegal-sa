@@ -58,7 +58,7 @@ export async function shredCaseDocuments(caseId: string): Promise<ShreddingResul
     }
 
     // Step 4: Update case record to mark as shredded
-    await updateCase(caseId, { status: 'SHREDDED' });
+    await updateCase(caseId, caseData.userId || '', { status: 'SHREDDED' });
 
     // Step 5: Write audit entry
     const auditDir = '/data';
