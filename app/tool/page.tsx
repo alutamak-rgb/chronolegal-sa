@@ -4,6 +4,9 @@ import React, { useState, useMemo } from "react";
 import { AlertTriangle, ShieldCheck, FileText, Upload, RefreshCw, CheckCircle, Lock, TrendingDown, BarChart3, Scan, Download, Save } from "lucide-react";
 import Link from "next/link";
 
+import { useAuth } from "@/lib/auth-context";
+import { canAccessTool } from "@/lib/subscription";
+
 interface MatrixItem { date: string; event: string; hospitalRecord: string; expertA: string; expertB: string; riskLevel: "LOW"|"MEDIUM"|"HIGH"; strategicAlert: string; sourcePage?: string; }
 
 const DEMO_DATA: MatrixItem[] = [
@@ -17,6 +20,7 @@ const DEMO_DATA: MatrixItem[] = [
 const NEEDS_OCR = ['application/pdf','image/png','image/jpeg','image/jpg','image/tiff','image/webp'];
 
 export default function ChronolegalAnalysisTool() {
+  const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState<1|2>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
@@ -48,7 +52,7 @@ export default function ChronolegalAnalysisTool() {
   const handleSaveToDashboard = async () => {
     setSaving(true);
     try {
-      await fetch('/api/cases', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ caseRef, claimant, attorney, accidentDate, matrixData, status: 'COMPLETED' }) });
+      await fetch('/api/cases', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ caseRef, claimant, attorney, accidentDate, matrixData, status: 'COMPLETED', userId: user?.id }) });
       setSaved(true);
     } catch { setSaved(false); }
     finally { setSaving(false); }

@@ -4,6 +4,8 @@ import { getTierByPlanCode, TRIAL_DAYS } from '@/lib/pricing';
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || '';
 const PB_URL = process.env.NEXT_PUBLIC_POCKETBASE_URL || 'http://127.0.0.1:8090';
+const PB_ADMIN_EMAIL = process.env.PB_ADMIN_EMAIL || '';
+const PB_ADMIN_PASSWORD = process.env.PB_ADMIN_PASSWORD || '';
 
 function verifyPaystack(body: string, sig: string): boolean {
   if (!PAYSTACK_SECRET) return true;
@@ -12,10 +14,13 @@ function verifyPaystack(body: string, sig: string): boolean {
 }
 
 async function pbAuth() {
+  if (!PB_ADMIN_EMAIL || !PB_ADMIN_PASSWORD) {
+    throw new Error('PocketBase admin credentials not configured');
+  }
   const res = await fetch(`${PB_URL}/api/admins/auth-with-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identity: 'admin@chronolegal.co.za', password: 'ChronoLegal2026!' }),
+    body: JSON.stringify({ identity: PB_ADMIN_EMAIL, password: PB_ADMIN_PASSWORD }),
   });
   const data = await res.json();
   return data.token;

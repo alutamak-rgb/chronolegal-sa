@@ -15,19 +15,32 @@ function write(rows: any[]) {
   fs.writeFileSync(DB_PATH, JSON.stringify(rows, null, 2));
 }
 
-export async function getAllCases() {
-  return read().sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+export async function getAllCases(userId?: string) {
+  const all = read();
+  const filtered = userId ? all.filter(c => c.userId === userId) : all;
+  return filtered.sort((a,b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function getCaseById(id: string) {
-  return read().find(c => c.id === id) || null;
+export async function getCaseById(id: string, userId?: string) {
+  const c = read().find(c => c.id === id) || null;
+  if (c && userId && c.userId !== userId) return null;
+  return c;
 }
 
-export async function createCase(data: { caseRef: string; claimant: string; attorney?: string; accidentDate?: string; matrixData?: string; status?: string }) {
+export async function createCase(data: {
+  caseRef: string;
+  claimant: string;
+  attorney?: string;
+  accidentDate?: string;
+  matrixData?: string;
+  status?: string;
+  userId?: string;
+}) {
   const rows = read();
   const now = new Date().toISOString();
   const entry = {
     id: `case_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    userId: data.userId || '',
     caseRef: data.caseRef,
     claimant: data.claimant,
     attorney: data.attorney || '',
@@ -42,12 +55,23 @@ export async function createCase(data: { caseRef: string; claimant: string; atto
   return entry;
 }
 
-export async function updateCase(id: string, data: { status?: string; matrixData?: string }) {
+export async function updateCase(id: string, userId: string, data: { status?: string; matrixData?: string }) {
   const rows = read();
-  const idx = rows.findIndex(c => c.id === id);
-  if (idx === -1) return;
+  const idx = rows.findIndex(c => c.id === id && c.userId === userId);
+  if (idx === -1) return null;
   if (data.status) rows[idx].status = data.status;
   if (data.matrixData) rows[idx].matrixData = data.matrixData;
   rows[idx].updatedAt = new Date().toISOString();
   write(rows);
+  return rows[idx];
+}
+
+// Clean up any cases without userId (legacy/mock data)
+export async function cleanupOrphanCases() {
+  const rows = read();
+  const filtered = rows.filter(c => c.userId && c.userId !== '');
+  if (filtered.length !== rows.length) {
+    write(filtered);
+    console.log(`[DB] Cleaned up ${rows.length - filtered.length} orphan cases`);
+  }
 }

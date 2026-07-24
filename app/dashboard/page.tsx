@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FolderOpen, Search, Plus, Calendar, User, ShieldAlert, FileText, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 interface CaseRecord {
   id: string; caseRef: string; claimant: string; attorney: string;
@@ -10,15 +12,20 @@ interface CaseRecord {
 }
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [cases, setCases] = useState<CaseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push("/auth/login"); return; }
+    
     async function fetchCases() {
       try {
-        const res = await fetch("/api/cases");
+        const res = await fetch(`/api/cases?userId=${encodeURIComponent(user!.id)}`);
         const result = await res.json();
         if (!res.ok) throw new Error(result.error);
         setCases(result.cases || []);
@@ -29,7 +36,13 @@ export default function DashboardPage() {
       }
     }
     fetchCases();
-  }, []);
+  }, [user, authLoading, router]);
+
+  if (authLoading) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-500"/></div>;
+  }
+
+  if (!user) return null;
 
   const filtered = cases.filter(c =>
     c.claimant.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -53,7 +66,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-800">Case Directory</h2>
-            <p className="text-xs text-slate-400 mt-1">Manage active RAF and personal injury matters. Data stored locally — no external cloud services.</p>
+            <p className="text-xs text-slate-400 mt-1">{user.firmName || user.name || user.email} · {cases.length} case{cases.length !== 1 ? 's' : ''}</p>
           </div>
           <Link href="/tool" className="bg-amber-500 text-slate-950 font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow hover:bg-amber-400 transition-all text-sm">
             <Plus className="h-4 w-4"/>Analyze New Case
@@ -63,9 +76,9 @@ export default function DashboardPage() {
         <div className="bg-emerald-50/50 border border-emerald-200/60 rounded-2xl p-4 mb-8 flex items-start gap-3">
           <ShieldAlert className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5"/>
           <div>
-            <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wide font-mono">POPIA Compliant Storage</h4>
+            <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wide font-mono">POPIA Compliant · Your Cases Only</h4>
             <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
-              Case data stored locally on encrypted infrastructure. No external cloud databases. No third-party data access. Ready for Railway Volume mount for permanent persistence.
+              All case data is isolated to your account. No other firm can see your matters. Stored on encrypted infrastructure.
             </p>
           </div>
         </div>
@@ -83,7 +96,7 @@ export default function DashboardPage() {
           <div className="bg-white border rounded-2xl p-16 text-center shadow-sm">
             <FolderOpen className="h-12 w-12 text-slate-300 mx-auto mb-4"/>
             <h3 className="text-base font-bold text-slate-700">No Case Files Found</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-6">{searchTerm ? "No cases match your search." : "No matters registered yet."}</p>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-6">{searchTerm ? "No cases match your search." : "No matters registered yet. Start your first analysis."}</p>
             <Link href="/tool" className="inline-flex items-center gap-2 bg-slate-950 text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:bg-slate-900"><Plus className="h-3.5 w-3.5"/>Start First Analysis</Link>
           </div>
         ) : (
