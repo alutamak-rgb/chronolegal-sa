@@ -59,6 +59,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <Link href="/tool" className="text-xs text-slate-400 hover:text-white">Analysis Tool</Link>
           <Link href="/dashboard" className="text-xs text-amber-400 font-bold">Dashboard</Link>
+          <Link href="/pricing" className="text-xs text-slate-400 hover:text-white">Billing</Link>
         </div>
       </header>
 
