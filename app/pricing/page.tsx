@@ -49,7 +49,7 @@ export default function PricingPage() {
               <ul className="space-y-3 mb-8 flex-1">
                 {t.features.map(f => (<li key={f} className="flex items-start gap-2 text-xs text-slate-600"><CheckCircle size={14} className="text-emerald-500 shrink-0 mt-0.5"/>{f}</li>))}
               </ul>
-              <Link href="/tool" className={`w-full py-3 rounded-xl text-sm font-bold text-center transition-all ${t.popular?'bg-amber-500 text-slate-950 hover:bg-amber-400':'bg-slate-950 text-white hover:bg-slate-900'}`}>{t.cta}</Link>
+              <Link href="/auth/register" className={`w-full py-3 rounded-xl text-sm font-bold text-center transition-all ${t.popular?'bg-amber-500 text-slate-950 hover:bg-amber-400':'bg-slate-950 text-white hover:bg-slate-900'}`}>{t.cta}</Link>
             </div>
           ))}
         </div>
@@ -71,7 +71,7 @@ export default function PricingPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500 text-slate-950 rounded-full text-xs font-mono font-bold uppercase tracking-wider mb-6">Launch Offer · 90 Days</div>
           <h2 className="text-3xl font-extrabold mb-4">Founding Member Pricing</h2>
           <p className="text-slate-400 max-w-xl mx-auto mb-8">First 50 firms lock in R1,450/case or R5,950/month Professional. Price guaranteed for 24 months. No lock-in. Cancel anytime.</p>
-          <Link href="/tool" className="inline-flex items-center gap-2 bg-amber-500 text-slate-950 font-bold px-10 py-4 rounded-xl text-lg hover:bg-amber-400 transition-all">Start Your Free Trial <ArrowRight size={20}/></Link>
+          <Link href="/auth/register" className="inline-flex items-center gap-2 bg-amber-500 text-slate-950 font-bold px-10 py-4 rounded-xl text-lg hover:bg-amber-400 transition-all">Start Your Free Trial <ArrowRight size={20}/></Link>
         </div>
       </main>
     </div>
